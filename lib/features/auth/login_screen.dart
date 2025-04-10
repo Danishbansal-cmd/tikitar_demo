@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';  // Import SVG package
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:tikitar_demo/features/webview/dashboard_screen.dart';
+import 'package:tikitar_demo/features/webview/task_screen.dart';  // Import SVG package
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen();
@@ -7,6 +9,53 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(color: Colors.blue),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Image.asset('assets/images/tikitar-bar.png', height: 50), // Logo
+                  SizedBox(height: 10),
+                  Text("Welcome!", style: TextStyle(color: Colors.white, fontSize: 18)),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.task),
+              title: Text("Task"),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => TaskScreen()));
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.dashboard),
+              title: Text("Dashboard"),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => DashboardScreen()));
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.person),
+              title: Text("My Profile"),
+              onTap: () {},
+            ),
+            ListTile(
+              leading: Icon(Icons.video_call),
+              title: Text("Meetings"),
+              onTap: () {},
+            ),
+            ListTile(
+              leading: Icon(Icons.business),
+              title: Text("Company List"),
+              onTap: () {},
+            ),
+          ],
+        ),
+      ),
       body: Stack(
         children: [
           Padding(padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -88,13 +137,22 @@ class LoginScreen extends StatelessWidget {
               ],
             ),
           ),
-          // Top Left Logo
+          // Top Left Logo with Popup Menu
           Positioned(
             top: 40, // Adjust top padding as needed
             left: 20, // Adjust left padding as needed
-            child: Image.asset(
-              'assets/images/tikitar-bar.png',  // Top left corner logo
-              height: 50,
+            child: Builder(
+              builder: (context) {
+                return GestureDetector(
+                  onTap: () {
+                    Scaffold.of(context).openDrawer(); // Opens the drawer
+                  },
+                  child: Image.asset(
+                    'assets/images/tikitar-bar.png',
+                    height: 50,
+                  ),
+                );
+              },
             ),
           ),
         ]
