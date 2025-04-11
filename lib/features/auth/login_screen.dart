@@ -1,67 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:tikitar_demo/features/auth/auth_controller.dart';
 import 'package:tikitar_demo/features/webview/dashboard_screen.dart';
 import 'package:tikitar_demo/features/webview/task_screen.dart';  // Import SVG package
 
-class LoginScreen extends StatelessWidget {
-  const LoginScreen();
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final AuthController _authController = AuthController();
+
+  bool _isLoading = false;
+
+  void _handleLogin() async {
+    setState(() => _isLoading = true);
+
+    final result = await _authController.login(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
+
+    if (!mounted) return;
+    print("Login result: $result");
+
+    if (result['status'] == true && result['data']?['token'] != null) {
+      Navigator.pushReplacementNamed(context, '/dashboard');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Login failed')),
+      );
+    }
+
+    setState(() => _isLoading = false);
+  }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(color: Colors.blue),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Image.asset('assets/images/tikitar-bar.png', height: 50), // Logo
-                  SizedBox(height: 10),
-                  Text("Welcome!", style: TextStyle(color: Colors.white, fontSize: 18)),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: Icon(Icons.task),
-              title: Text("Task"),
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => TaskScreen()));
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.dashboard),
-              title: Text("Dashboard"),
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => DashboardScreen()));
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.person),
-              title: Text("My Profile"),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: Icon(Icons.video_call),
-              title: Text("Meetings"),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: Icon(Icons.business),
-              title: Text("Company List"),
-              onTap: () {},
-            ),
-          ],
-        ),
-      ),
       body: Stack(
         children: [
-          Padding(padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                SizedBox(height: MediaQuery.of(context).size.height * 0.15), // Add top spacing
                 // Logo
                 Image.asset(
                   'assets/images/tikitar-logo.png',  // logo asset
@@ -80,6 +71,7 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 5),
                 // Email TextField
                 TextField(
+                  controller: _emailController,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12), // Increased border-radius
@@ -99,6 +91,7 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 5),
                 // Password TextField
                 TextField(
+                  controller: _passwordController,
                   obscureText: true,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
@@ -127,11 +120,10 @@ class LoginScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: TextButton(
-                    onPressed: () {},
-                    child: Text(
-                      'Login',
-                      style: TextStyle(color: Colors.white),
-                    ),
+                    onPressed: _isLoading ? null : _handleLogin,
+                    child: _isLoading
+                        ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Text('Login', style: TextStyle(color: Colors.white)),
                   ),
                 ),
               ],
