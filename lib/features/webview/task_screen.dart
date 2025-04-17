@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
-import 'package:tikitar_demo/core/network/api_base.dart';
 import 'package:tikitar_demo/features/auth/meetings_controller.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
-import 'package:tikitar_demo/features/data/local/token_storage.dart';
 import 'dart:convert';
-  import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 
 class TaskScreen extends StatefulWidget {
@@ -67,31 +64,93 @@ class _TaskScreenState extends State<TaskScreen> {
 
       // Inject JS
       final jsToInject = """
-        const selects = document.querySelectorAll('select.form-select[placeholder="Contact Person"]');
-        selects.forEach(select => {
-          select.innerHTML = `$optionsHTML`;
+        // Helper to create popup
+        function createPopup(content) {
+          const existingPopup = document.getElementById('flutter-popup');
+          if (existingPopup) existingPopup.remove();
+
+          const popup = document.createElement('div');
+          popup.id = 'flutter-popup';
+          popup.style.position = 'fixed';
+          popup.style.top = '0';
+          popup.style.left = '0';
+          popup.style.width = '100vw';
+          popup.style.height = '100vh';
+          popup.style.background = 'rgba(0,0,0,0.5)';
+          popup.style.zIndex = '9999';
+          popup.style.display = 'flex';
+          popup.style.alignItems = 'center';
+          popup.style.justifyContent = 'center';
+
+          const inner = document.createElement('div');
+          inner.style.background = '#fff';
+          inner.style.padding = '20px';
+          inner.style.borderRadius = '10px';
+          inner.innerHTML = content;
+
+          popup.appendChild(inner);
+          document.body.appendChild(popup);
+        }
+
+        // First Add More (Index 0) - Just close
+        document.querySelectorAll('.addmore')[0]?.addEventListener('click', function(e) {
+          e.preventDefault();
+          const html = \`
+            <h5>Simple Popup</h5>
+            <button id="popup-close">Close</button>
+          \`;
+          createPopup(html);
+          document.getElementById('popup-close')?.addEventListener('click', () => {
+            document.getElementById('flutter-popup')?.remove();
+          });
         });
 
-        const submitBtn = document.querySelector('button.btn.btn-primary[type="submit"]');
-        if (submitBtn) {
-          submitBtn.addEventListener('click', function(event) {
-            event.preventDefault();
+        // Second Add More (Index 1) - Form popup
+        document.querySelectorAll('.addmore')[1]?.addEventListener('click', function(e) {
+          e.preventDefault();
+          const html = \`
+            <h5>Add New Contact</h5>
+            <input type="text" placeholder="Name" id="popup-name" class="form-control mb-2"/><br/>
+            <input type="text" placeholder="Contact Person" id="popup-contact-person" class="form-control mb-2"/><br/>
+            <input type="email" placeholder="Contact Email" id="popup-contact-email" class="form-control mb-2"/><br/>
+            <input type="text" placeholder="Contact Phone (10 digits)" id="popup-contact-phone" class="form-control mb-2"/><br/>
+            <select id="popup-category" class="form-select mb-2">
+              <option selected disabled>Select Category</option>
+              <option value="1">General</option>
+              <option value="2">Premium</option>
+            </select><br/>
+            <div id="location-list">
+              <h6>Locations</h6>
+              <div class="location-item mb-2">
+                <input type="text" placeholder="Location Name" class="form-control mb-1 loc-name"/>
+                <input type="text" placeholder="Address" class="form-control mb-1 loc-address"/>
+              </div>
+            </div>
+            <button id="add-location" class="btn btn-secondary btn-sm mb-2">Add Location</button><br/>
+            <button id="popup-close">Close</button>
+          \`;
+          createPopup(html);
 
-            const contactPerson = document.querySelector('select.form-select[placeholder="Contact Person"]')?.value || '';
-            const contactMobile = document.querySelector('input.form-control[placeholder="Contact Person Mobile"]')?.value || '';
-            const contactEmail = document.querySelector('input.form-control[placeholder="Contact Person Email"]')?.value || '';
-            const comments = document.querySelector('textarea.form-control[placeholder="Comments"]')?.value || '';
-
-            const data = {
-              client_id: contactPerson,
-              contact_person_mobile: contactMobile,
-              contact_person_email: contactEmail,
-              comments: comments
-            };
-
-            console.log("SUBMIT_DATA::" + JSON.stringify(data));
+          document.getElementById('popup-close')?.addEventListener('click', () => {
+            document.getElementById('flutter-popup')?.remove();
           });
-        }
+
+          document.getElementById('add-location')?.addEventListener('click', () => {
+            const locDiv = document.createElement('div');
+            locDiv.className = "location-item mb-2";
+            locDiv.innerHTML = \`
+              <input type="text" placeholder="Location Name" class="form-control mb-1 loc-name"/>
+              <input type="text" placeholder="Address" class="form-control mb-1 loc-address"/>
+            \`;
+            document.getElementById('location-list')?.appendChild(locDiv);
+          });
+
+          // Phone input validation
+          const phoneInput = document.getElementById('popup-contact-phone');
+          phoneInput?.addEventListener('input', function () {
+            this.value = this.value.replace(/[^0-9]/g, '').substring(0, 10);
+          });
+        });
       """;
 
       await _controller?.evaluateJavascript(source: jsToInject);
@@ -134,8 +193,8 @@ Future<void> _submitMeetingData(Map<String, dynamic> formData) async {
       email: enrichedFormData["contact_person_email"],
       mobile: enrichedFormData["contact_person_mobile"],
       comments: enrichedFormData["comments"],
-      latitude: enrichedFormData["latitude"],
-      longitude: enrichedFormData["longitude"],
+      latitude: enrichedFormData["latitude"].toString(),
+      longitude: enrichedFormData["longitude"].toString(),
     );
 
     ScaffoldMessenger.of(context).showSnackBar(

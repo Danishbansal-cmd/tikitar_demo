@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tikitar_demo/core/network/api_base.dart';
 import 'package:tikitar_demo/features/data/local/token_storage.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _SplashScreenState extends State<SplashScreen> {
     final token = await TokenStorage.getToken();
 
     if (token != null) {
+      ApiBase.setToken(token);
       Navigator.pushReplacementNamed(context, '/dashboard');
     } else {
       Navigator.pushReplacementNamed(context, '/login');

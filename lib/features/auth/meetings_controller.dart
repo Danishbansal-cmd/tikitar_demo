@@ -15,6 +15,8 @@ class MeetingsController {
     if (token == null) {
       print("Token not found.");
       throw Exception("Authentication token not found.");
+    }else {
+      print("meeting submitted token: $token");
     }
 
     final payload = {
