@@ -109,13 +109,31 @@ class _TaskScreenState extends State<TaskScreen> {
       document.body.appendChild(popup);
     }
 
+    
+    // ♿to disable the Contact Mobile & Contact Email
+    const contactMobile = document.querySelector('input.form-control[placeholder="Contact Person Mobile"]');
+    const contactEmail = document.querySelector('input.form-control[placeholder="Contact Person Email"]');
+    if(contactMobile){
+      contactMobile.disabled = true;
+    }
+    if(contactEmail){
+      contactEmail.disabled = true;
+    }
+
     // Contact Person select field injection
     const selects = document.querySelectorAll('select.form-select[placeholder="Contact Person"]');
     selects.forEach(select => {
       select.innerHTML = `$contactPersonOptions`;
+
+      select.addEventListener('change', function (){
+        const selectedOption = this.options[this.selectedIndex];
+
+        contactMobile &&  (contactMobile.value = selectedOption.getAttribute('data-contact_mobile') || '');
+        contactEmail && (contactEmail.value = selectedOption.getAttribute('data-contact_email') || '');
+      });
     });
 
-    // Full Form Popup Button
+    // ✅ New Person Form Full Popup Button
     document.querySelectorAll('.addmore')[1]?.addEventListener('click', function(e) {
       e.preventDefault();
       const html = \`
@@ -229,8 +247,6 @@ class _TaskScreenState extends State<TaskScreen> {
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
 
         const contactPerson = document.querySelector('select.form-select[placeholder="Contact Person"]')?.value || '';
-        const contactMobile = document.querySelector('input.form-control[placeholder="Contact Person Mobile"]')?.value || '';
-        const contactEmail = document.querySelector('input.form-control[placeholder="Contact Person Email"]')?.value || '';
         const comments = document.querySelector('textarea.form-control[placeholder="Comments"]')?.value || '';
 
         const data = {
@@ -328,7 +344,10 @@ class _TaskScreenState extends State<TaskScreen> {
       for (var client in clients) {
         final id = _escapeJS(client['id'].toString());
         final name = _escapeJS(client['name'].toString());
-        contactPersonOptionsHTML += '<option value="$id">$name</option>';
+        final contact_email = _escapeJS(client['contact_email'].toString());
+        final contact_mobile = _escapeJS(client['contact_phone'].toString());
+        contactPersonOptionsHTML +=
+            '<option value="$id" data-contact_email="$contact_email" data-contact_mobile="$contact_mobile">$name</option>';
       }
 
       // Now inject both category and contact person options into the web view
@@ -352,7 +371,6 @@ class _TaskScreenState extends State<TaskScreen> {
     final jsCode = baseJS(contactPersonOptions, categoryOptions);
     await _controller?.evaluateJavascript(source: jsCode);
   }
-
 
   // Add method to pick an image file (for visiting card) with multiple options
   Future<void> _pickVisitedCardFile() async {
@@ -433,10 +451,13 @@ class _TaskScreenState extends State<TaskScreen> {
 
       if (fileName != null) {
         // Update the DOM content in WebView
-        final safeFileName = fileName.replaceAll("'", "\\'").replaceAll('"', '\\"');
+        final safeFileName = fileName
+            .replaceAll("'", "\\'")
+            .replaceAll('"', '\\"');
 
         // Inject JavaScript code to update the UI and handle the remove functionality
-        _controller?.evaluateJavascript(source: """
+        _controller?.evaluateJavascript(
+          source: """
           function attachUploadClickHandler() {
             const uploadWrapperLink = document.querySelector('.uploadfilewrapper a');
             if (uploadWrapperLink) {
@@ -490,7 +511,8 @@ class _TaskScreenState extends State<TaskScreen> {
 
           // Initial setup for the upload click handler
           attachUploadClickHandler();
-        """);
+        """,
+        );
       }
     } on PlatformException catch (e) {
       print("Failed to pick file: $e");
@@ -499,9 +521,9 @@ class _TaskScreenState extends State<TaskScreen> {
       );
     } catch (e) {
       print("Error picking file: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking file: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking file: $e')));
     }
   }
 
