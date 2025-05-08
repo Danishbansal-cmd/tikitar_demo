@@ -29,11 +29,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   }
 
   Future<void> _fetchAndInjectUserProfile(InAppWebViewController controller) async {
-    final token = await TokenStorage.getToken();
-    if (token == null) return;
-
     try {
-      final response = await ApiBase.get('/user', token: token);
+      final response = await ApiBase.get('/user');
       print("User profile: $response");
       final data = response['data']?['user'];
       print("User data address: ${data['address']['line1']}");

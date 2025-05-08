@@ -3,6 +3,11 @@ import 'package:http/http.dart' as http;
 
 class ApiBase {
   static const String _baseUrl = 'https://app.tikitar.com/api';
+
+  /// Getter to access the base URL
+  static String get baseUrl => _baseUrl;
+
+
   static const Map<String, String> _defaultHeaders = {
     'Content-Type': 'application/json',
   };
@@ -57,12 +62,13 @@ class ApiBase {
     };
 
     print("GET Uri: $uri");
+    print("GET headers: $headers");
 
     final response = await http.get(uri, headers: headers);
 
     if (response.statusCode == 200) {
-      print("Raw response from get: ${response.body}");
-      print("Raw response from get: ${response.statusCode}");
+      print("Raw response from get body: ${response.body}");
+      print("Raw response from get statusCode: ${response.statusCode}");
       try {
         final decoded = jsonDecode(response.body);
         print("GET response decoded: $decoded");

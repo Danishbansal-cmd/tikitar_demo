@@ -1,10 +1,16 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
+import 'package:tikitar_demo/features/auth/categories_controller.dart';
+import 'package:tikitar_demo/features/auth/clients_controller.dart';
 import 'package:tikitar_demo/features/auth/meetings_controller.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
+import 'dart:io'; // Add import for File handling
 
 class TaskScreen extends StatefulWidget {
   @override
@@ -14,6 +20,7 @@ class TaskScreen extends StatefulWidget {
 class _TaskScreenState extends State<TaskScreen> {
   InAppWebViewController? _controller;
   List<Map<String, dynamic>> fields = [];
+  File? _visitedCardFile; // Variable to hold the selected file
 
   @override
   Widget build(BuildContext context) {
@@ -22,202 +29,597 @@ class _TaskScreenState extends State<TaskScreen> {
       title: "Task",
       onWebViewCreated: (controller) {
         _controller = controller;
+
+        // Add JavaScript handler for clearing form and visiting card
+        controller?.addJavaScriptHandler(
+          handlerName: 'clearFormAndVisitingCard',
+          callback: (args) async {
+            setState(() {
+              _visitedCardFile = null; // Clear the file reference
+            });
+          },
+        );
+
+        _controller?.addJavaScriptHandler(
+          handlerName: 'uploadVisitingCard',
+          callback: (args) async {
+            await _pickVisitedCardFile();
+          },
+        );
+
+        _controller?.addJavaScriptHandler(
+          handlerName: 'clearVisitedCardFile',
+          callback: (args) {
+            setState(() {
+              _visitedCardFile = null; // Clear the selected file in Flutter
+            });
+          },
+        );
       },
       onLoadStop: (controller, url) async {
-        await fetchCurrentUsersClients();
+        await fetchCategoriesAndCurrentUsersClientsAndInjectJS();
       },
       onConsoleMessage: (consoleMessage) {
-        if (consoleMessage.messageLevel == ConsoleMessageLevel.LOG &&
-            consoleMessage.message.startsWith("SUBMIT_DATA::")) {
-          final jsonData = consoleMessage.message.replaceFirst("SUBMIT_DATA::", "");
-          final data = json.decode(jsonData);
-          _submitMeetingData(data);
+        if (consoleMessage.messageLevel == ConsoleMessageLevel.LOG) {
+          final message = consoleMessage.message;
+
+          if (message.startsWith("SUBMIT_CLIENT_DATA::")) {
+            final jsonData = message.replaceFirst("SUBMIT_CLIENT_DATA::", "");
+            final data = json.decode(jsonData);
+            _handlePopupFormSubmit(data); // Handle popup form submission
+          } else if (message.startsWith("MAIN_SUBMIT::")) {
+            final jsonData = message.replaceFirst("MAIN_SUBMIT::", "");
+            final data = json.decode(jsonData);
+            _submitMeetingData(data); // Handle main form submit
+          }
         }
       },
     );
   }
 
-  Future<void> fetchCurrentUsersClients() async {
-    try {
-      final storedData = await DataStorage.getUserClientsData();
-      if (storedData == null) {
-        print("No stored client data found.");
-        return;
+  // JavaScript code to inject into the web view
+  String baseJS(String contactPersonOptions, String categoryOptions) {
+    return """
+    function createPopup(content) {
+      const existingPopup = document.getElementById('flutter-popup');
+      if (existingPopup) existingPopup.remove();
+
+      const popup = document.createElement('div');
+      popup.id = 'flutter-popup';
+      popup.style.position = 'fixed';
+      popup.style.top = '0';
+      popup.style.left = '0';
+      popup.style.width = '100vw';
+      popup.style.height = '100vh';
+      popup.style.background = 'rgba(0,0,0,0.5)';
+      popup.style.zIndex = '9999';
+      popup.style.display = 'flex';
+      popup.style.alignItems = 'center';
+      popup.style.justifyContent = 'center';
+
+      const inner = document.createElement('div');
+      inner.style.background = '#fff';
+      inner.style.padding = '20px';
+      inner.style.borderRadius = '10px';
+      inner.style.maxHeight = '90vh';
+      inner.style.overflowY = 'auto';
+      inner.innerHTML = content;
+
+      popup.appendChild(inner);
+      document.body.appendChild(popup);
+    }
+
+    // Contact Person select field injection
+    const selects = document.querySelectorAll('select.form-select[placeholder="Contact Person"]');
+    selects.forEach(select => {
+      select.innerHTML = `$contactPersonOptions`;
+    });
+
+    // Full Form Popup Button
+    document.querySelectorAll('.addmore')[1]?.addEventListener('click', function(e) {
+      e.preventDefault();
+      const html = \`
+        <h5>Add New Client</h5>
+        <input type="text" placeholder="Name" id="popup-name" class="form-control mb-1"/>
+        <select id="popup-category" class="form-select">
+          $categoryOptions
+        </select><br/>
+        <div id="location-list">
+          <h6>Locations</h6>
+          <div class="location-item mb-3">
+            <input type="text" placeholder="Branch Name" class="form-control mb-1 loc-branch-name"/>
+            <input type="text" placeholder="Address Line 1" class="form-control mb-1 loc-address1"/>
+            <input type="text" placeholder="Address Line 2" class="form-control mb-1 loc-address2"/>
+            <input type="text" placeholder="City" class="form-control mb-1 loc-city"/>
+            <input type="text" placeholder="State" class="form-control mb-1 loc-state"/>
+            <input type="text" placeholder="Country" class="form-control mb-1 loc-country"/>
+            <input type="text" placeholder="Contact Person" class="form-control mb-1 loc-contact-person"/>
+            <input type="email" placeholder="Contact Email" class="form-control mb-1 loc-contact-email"/>
+            <input type="text" placeholder="Contact Phone (10 digits)" class="form-control mb-1 loc-contact-phone"/>
+          </div>
+        </div>
+        <button id="add-location" class="btn btn-secondary btn-sm mb-3">Add Another Location</button><br/>
+        <button id="popup-close" class="btn btn-danger me-2">Close</button>
+        <button id="submit-client" class="btn btn-primary">Submit Client</button>
+      \`;
+      createPopup(html);
+
+      document.getElementById('popup-close')?.addEventListener('click', () => {
+        document.getElementById('flutter-popup')?.remove();
+      });
+
+      document.getElementById('add-location')?.addEventListener('click', () => {
+        const locDiv = document.createElement('div');
+        locDiv.className = "location-item mb-3";
+        locDiv.innerHTML = \`
+          <hr/>
+          <input type="text" placeholder="Branch Name" class="form-control mb-1 loc-branch-name"/>
+          <input type="text" placeholder="Address Line 1" class="form-control mb-1 loc-address1"/>
+          <input type="text" placeholder="Address Line 2" class="form-control mb-1 loc-address2"/>
+          <input type="text" placeholder="City" class="form-control mb-1 loc-city"/>
+          <input type="text" placeholder="State" class="form-control mb-1 loc-state"/>
+          <input type="text" placeholder="Country" class="form-control mb-1 loc-country"/>
+          <input type="text" placeholder="Contact Person" class="form-control mb-1 loc-contact-person"/>
+          <input type="email" placeholder="Contact Email" class="form-control mb-1 loc-contact-email"/>
+          <input type="text" placeholder="Contact Phone (10 digits)" class="form-control mb-1 loc-contact-phone"/>
+        \`;
+        document.getElementById('location-list')?.appendChild(locDiv);
+      });
+
+      const observePhoneInputs = () => {
+        document.querySelectorAll('.loc-contact-phone').forEach(input => {
+          input.removeEventListener('input', phoneInputHandler);
+          input.addEventListener('input', phoneInputHandler);
+        });
+      };
+
+      const phoneInputHandler = function () {
+        this.value = this.value.replace(/[^0-9]/g, '').substring(0, 10);
+      };
+
+      observePhoneInputs();
+      const observer = new MutationObserver(observePhoneInputs);
+      observer.observe(document.getElementById('location-list'), { childList: true, subtree: true });
+
+      document.getElementById('submit-client')?.addEventListener('click', () => {
+        const name = document.getElementById('popup-name')?.value || "";
+        const category = parseInt(document.getElementById('popup-category')?.value || "0");
+
+        const locationNodes = document.querySelectorAll('.location-item');
+        const locations = [];
+
+        locationNodes.forEach((loc) => {
+          const getVal = (selector) => loc.querySelector(selector)?.value || "";
+          const locationData = {
+            branch_name: getVal('.loc-branch-name'),
+            address_line1: getVal('.loc-address1'),
+            address_line2: getVal('.loc-address2'),
+            city: getVal('.loc-city'),
+            state: getVal('.loc-state'),
+            country: getVal('.loc-country'),
+            contact_person: getVal('.loc-contact-person'),
+            contact_email: getVal('.loc-contact-email'),
+            contact_phone: getVal('.loc-contact-phone'),
+          };
+
+          if (locationData.contact_person && locationData.contact_email && locationData.contact_phone) {
+            locations.push(locationData);
+          }
+        });
+
+        const finalPayload = {
+          name: name,
+          category_id: category,
+          locations: locations
+        };
+
+        console.log("SUBMIT_CLIENT_DATA::" + JSON.stringify(finalPayload));
+        document.getElementById('flutter-popup')?.remove();
+      });
+    });
+
+    // ✅ Main form submit logic
+    const submitBtn = document.querySelector('button.btn.btn-primary[type="submit"]');
+    if (submitBtn) {
+      submitBtn.addEventListener('click', function(event) {
+        event.preventDefault();
+
+        // Replace the button content with a spinner indicator and disable it
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
+
+        const contactPerson = document.querySelector('select.form-select[placeholder="Contact Person"]')?.value || '';
+        const contactMobile = document.querySelector('input.form-control[placeholder="Contact Person Mobile"]')?.value || '';
+        const contactEmail = document.querySelector('input.form-control[placeholder="Contact Person Email"]')?.value || '';
+        const comments = document.querySelector('textarea.form-control[placeholder="Comments"]')?.value || '';
+
+        const data = {
+          client_id: contactPerson,
+          contact_person_mobile: contactMobile,
+          contact_person_email: contactEmail,
+          comments: comments
+        };
+
+        console.log("MAIN_SUBMIT::" + JSON.stringify(data));
+
+        // After submission, notify Flutter to clear the form and visiting card
+        if (window.flutter_inappwebview) {
+          window.flutter_inappwebview.callHandler('clearFormAndVisitingCard');
+        } else if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'clearFormAndVisitingCard' }));
+        } else if (window.Flutter) {
+          window.Flutter.postMessage(JSON.stringify({ type: 'clearFormAndVisitingCard' }));
+        }
+      });
+    }
+
+    // Add input validation for mobile number field
+    const contactMobileInput = document.querySelector('input.form-control[placeholder="Contact Person Mobile"]');
+    if (contactMobileInput) {
+      // Set input type to 'tel' for better mobile keyboard support
+      contactMobileInput.type = 'tel';
+      
+      // Add input event handler
+      contactMobileInput.addEventListener('input', function() {
+        // Remove any non-digit characters and limit to 10 digits
+        this.value = this.value.replace(/[^0-9]/g, '').substring(0, 10);
+      });
+      
+      // Add paste event handler to handle pasted content
+      contactMobileInput.addEventListener('paste', function(e) {
+        e.preventDefault();
+        const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+        this.value = pastedText.replace(/[^0-9]/g, '').substring(0, 10);
+      });
+    }
+
+    // 👇 This function can be called from Flutter to reset the button
+    function resetSubmitButton() {
+      const btn = document.querySelector('button.btn.btn-primary[type="submit"]');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = 'Submit';
       }
+    }
+
+    // 📎 Visiting Card Upload Click Handler
+    function attachUploadClickHandler() {
+      const uploadWrapperLink = document.querySelector('.uploadfilewrapper a');
+      if (uploadWrapperLink) {
+        uploadWrapperLink.addEventListener('click', function (e) {
+          e.preventDefault();
+          if (window.flutter_inappwebview) {
+            window.flutter_inappwebview.callHandler('uploadVisitingCard');
+          } else if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'uploadVisitingCard' }));
+          } else if (window.Flutter) {
+            window.Flutter.postMessage(JSON.stringify({ type: 'uploadVisitingCard' }));
+          }
+        });
+      }
+    }
+
+    // Initial attach
+    attachUploadClickHandler();
+  """;
+  }
+
+  // Fetch categories and current user's clients, then inject JS into the web view
+  Future<void> fetchCategoriesAndCurrentUsersClientsAndInjectJS() async {
+    try {
+      // Fetch categories first
+      final categories = await CategoryController.fetchCategories();
+
+      String categoryOptionsHTML = '<option selected>Select Category</option>';
+      for (var cat in categories) {
+        final id = _escapeJS(cat['id'].toString());
+        final name = _escapeJS(cat['name'].toString());
+        categoryOptionsHTML += '<option value="$id">$name</option>';
+      }
+
+      // Fetch current user's clients
+      final storedData = await DataStorage.getUserClientsData();
+      if (storedData == null) return;
 
       final clients = jsonDecode(storedData) as List<dynamic>;
 
-      fields = clients.map<Map<String, dynamic>>((client) {
-        return {
-          'id': client['id'],
-          'name': client['name'],
-        };
-      }).toList();
-
-      // Build option list
-      String optionsHTML = '<option selected>Contact Person</option>';
-      for (var client in fields) {
+      String contactPersonOptionsHTML =
+          '<option selected>Contact Person</option>';
+      for (var client in clients) {
         final id = _escapeJS(client['id'].toString());
         final name = _escapeJS(client['name'].toString());
-        optionsHTML += '<option value="$id">$name</option>';
+        contactPersonOptionsHTML += '<option value="$id">$name</option>';
       }
 
-      // Inject JS
-      final jsToInject = """
-        // Helper to create popup
-        function createPopup(content) {
-          const existingPopup = document.getElementById('flutter-popup');
-          if (existingPopup) existingPopup.remove();
+      // Now inject both category and contact person options into the web view
+      print("Categories HTML: $categoryOptionsHTML");
+      print("Contact Person Options HTML: $contactPersonOptionsHTML");
 
-          const popup = document.createElement('div');
-          popup.id = 'flutter-popup';
-          popup.style.position = 'fixed';
-          popup.style.top = '0';
-          popup.style.left = '0';
-          popup.style.width = '100vw';
-          popup.style.height = '100vh';
-          popup.style.background = 'rgba(0,0,0,0.5)';
-          popup.style.zIndex = '9999';
-          popup.style.display = 'flex';
-          popup.style.alignItems = 'center';
-          popup.style.justifyContent = 'center';
+      await injectWebJS(
+        categoryOptions: categoryOptionsHTML,
+        contactPersonOptions: contactPersonOptionsHTML,
+      );
+    } catch (e) {
+      print("Error loading categories and clients: $e");
+    }
+  }
 
-          const inner = document.createElement('div');
-          inner.style.background = '#fff';
-          inner.style.padding = '20px';
-          inner.style.borderRadius = '10px';
-          inner.innerHTML = content;
+  // Inject JavaScript into the web view
+  Future<void> injectWebJS({
+    String contactPersonOptions = '',
+    String categoryOptions = '',
+  }) async {
+    final jsCode = baseJS(contactPersonOptions, categoryOptions);
+    await _controller?.evaluateJavascript(source: jsCode);
+  }
 
-          popup.appendChild(inner);
-          document.body.appendChild(popup);
+
+  // Add method to pick an image file (for visiting card) with multiple options
+  Future<void> _pickVisitedCardFile() async {
+    // Show a dialog to let the user choose between camera, gallery, or file picker
+    final option = await showDialog<int>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Upload Visiting Card'),
+          content: const Text('Choose an option to upload your visiting card'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.pop(context, 1), // Camera
+              child: const Text('Take Photo'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, 2), // Gallery
+              child: const Text('Choose from Gallery'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, 3), // File picker
+              child: const Text('Choose File'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, 0), // Cancel
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (option == null || option == 0) return; // User canceled
+
+    try {
+      XFile? pickedFile;
+      String? fileName;
+
+      if (option == 1) {
+        // Camera
+        pickedFile = await ImagePicker().pickImage(
+          source: ImageSource.camera,
+          imageQuality: 80,
+          maxWidth: 1200,
+        );
+        fileName = pickedFile?.name ?? 'camera_image.jpg';
+      } else if (option == 2) {
+        // Gallery
+        pickedFile = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 80,
+          maxWidth: 1200,
+        );
+        fileName = pickedFile?.name ?? 'gallery_image.jpg';
+      } else if (option == 3) {
+        // File picker
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'],
+        );
+
+        if (result != null && result.files.isNotEmpty) {
+          final file = result.files.first;
+          setState(() {
+            _visitedCardFile = File(file.path!);
+          });
+          fileName = file.name;
         }
+      }
 
-        // First Add More (Index 0) - Just close
-        document.querySelectorAll('.addmore')[0]?.addEventListener('click', function(e) {
-          e.preventDefault();
-          const html = \`
-            <h5>Simple Popup</h5>
-            <button id="popup-close">Close</button>
-          \`;
-          createPopup(html);
-          document.getElementById('popup-close')?.addEventListener('click', () => {
-            document.getElementById('flutter-popup')?.remove();
-          });
+      if (pickedFile != null && option != 3) {
+        // For image_picker results
+        setState(() {
+          _visitedCardFile = File(pickedFile!.path);
         });
+        fileName = pickedFile.name;
+      }
 
-        // Second Add More (Index 1) - Form popup
-        document.querySelectorAll('.addmore')[1]?.addEventListener('click', function(e) {
-          e.preventDefault();
-          const html = \`
-            <h5>Add New Contact</h5>
-            <input type="text" placeholder="Name" id="popup-name" class="form-control mb-2"/><br/>
-            <input type="text" placeholder="Contact Person" id="popup-contact-person" class="form-control mb-2"/><br/>
-            <input type="email" placeholder="Contact Email" id="popup-contact-email" class="form-control mb-2"/><br/>
-            <input type="text" placeholder="Contact Phone (10 digits)" id="popup-contact-phone" class="form-control mb-2"/><br/>
-            <select id="popup-category" class="form-select mb-2">
-              <option selected disabled>Select Category</option>
-              <option value="1">General</option>
-              <option value="2">Premium</option>
-            </select><br/>
-            <div id="location-list">
-              <h6>Locations</h6>
-              <div class="location-item mb-2">
-                <input type="text" placeholder="Location Name" class="form-control mb-1 loc-name"/>
-                <input type="text" placeholder="Address" class="form-control mb-1 loc-address"/>
-              </div>
-            </div>
-            <button id="add-location" class="btn btn-secondary btn-sm mb-2">Add Location</button><br/>
-            <button id="popup-close">Close</button>
+      if (fileName != null) {
+        // Update the DOM content in WebView
+        final safeFileName = fileName.replaceAll("'", "\\'").replaceAll('"', '\\"');
+
+        // Inject JavaScript code to update the UI and handle the remove functionality
+        _controller?.evaluateJavascript(source: """
+          function attachUploadClickHandler() {
+            const uploadWrapperLink = document.querySelector('.uploadfilewrapper a');
+            if (uploadWrapperLink) {
+              uploadWrapperLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (window.flutter_inappwebview) {
+                  window.flutter_inappwebview.callHandler('uploadVisitingCard');
+                } else if (window.ReactNativeWebView) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'uploadVisitingCard' }));
+                } else if (window.Flutter) {
+                  window.Flutter.postMessage(JSON.stringify({ type: 'uploadVisitingCard' }));
+                }
+              });
+            }
+          }
+
+          // Function to update the UI based on the selected file
+          function updateSelectedFileUI(fileName) {
+            const wrapper = document.querySelector('.uploadfilewrapper a');
+            if (wrapper) {
+              wrapper.innerHTML = \`
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;">📎 Selected: ${safeFileName}</span>
+                  <button id="remove-upload-file" style="border: none; background: transparent; font-size: 18px; cursor: pointer;">❌</button>
+                </div>
+              \`;
+
+              document.getElementById('remove-upload-file')?.addEventListener('click', function() {
+                wrapper.innerHTML = \`
+                  <a href="#" class="d-flex gap-2 align-items-center justify-content-center">
+                    <img src="assets/img/upload.svg" alt=""><span class="scanfile">Scan/Upload Visiting Card</span>
+                  </a>
+                \`;
+
+                // Notify Flutter to clear the variable _visitedCardFile
+                if (window.flutter_inappwebview) {
+                  window.flutter_inappwebview.callHandler('clearVisitedCardFile');
+                } else if (window.ReactNativeWebView) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'clearVisitedCardFile' }));
+                } else if (window.Flutter) {
+                  window.Flutter.postMessage(JSON.stringify({ type: 'clearVisitedCardFile' }));
+                }
+
+                attachUploadClickHandler(); // Re-bind after re-inserting HTML
+              });
+            }
+          }
+
+          // Update the UI with the selected file
+          updateSelectedFileUI("${safeFileName}");
+
+          // Initial setup for the upload click handler
+          attachUploadClickHandler();
+        """);
+      }
+    } on PlatformException catch (e) {
+      print("Failed to pick file: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick file: ${e.message}')),
+      );
+    } catch (e) {
+      print("Error picking file: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking file: $e')),
+      );
+    }
+  }
+
+  Future<void> _submitMeetingData(Map<String, dynamic> formData) async {
+    try {
+      // Check and request location permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.denied) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Location permission denied")));
+        return;
+      }
+
+      // Get current location
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final enrichedFormData = {
+        ...formData,
+        "latitude": position.latitude,
+        "longitude": position.longitude,
+      };
+
+      print("visitedCardFile: $_visitedCardFile");
+
+      final now = DateTime.now();
+      final formattedDate =
+          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+      // Submit meeting with visited card file (if selected)
+      await MeetingsController.submitMeeting(
+        clientId: enrichedFormData["client_id"],
+        email: enrichedFormData["contact_person_email"],
+        mobile: enrichedFormData["contact_person_mobile"],
+        comments: enrichedFormData["comments"],
+        latitude: enrichedFormData["latitude"].toString(),
+        longitude: enrichedFormData["longitude"].toString(),
+        meeting_date: formattedDate,
+        visitedCardFile: _visitedCardFile, // Include the visited card file here
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Meeting submitted successfully!")),
+      );
+
+      // Clear form fields
+      final clearFormJS = """
+        document.querySelector('select.form-select[placeholder="Contact Person"]').selectedIndex = 0;
+        document.querySelector('input.form-control[placeholder="Contact Person Mobile"]').value = '';
+        document.querySelector('input.form-control[placeholder="Contact Person Email"]').value = '';
+        document.querySelector('textarea.form-control[placeholder="Comments"]').value = '';
+        
+        // Reset visiting card UI
+        const wrapper = document.querySelector('.uploadfilewrapper a');
+        if (wrapper) {
+          wrapper.innerHTML = \`
+            <a href="#" class="d-flex gap-2 align-items-center justify-content-center">
+              <img src="assets/img/upload.svg" alt=""><span class="scanfile">Scan/Upload Visiting Card</span>
+            </a>
           \`;
-          createPopup(html);
-
-          document.getElementById('popup-close')?.addEventListener('click', () => {
-            document.getElementById('flutter-popup')?.remove();
-          });
-
-          document.getElementById('add-location')?.addEventListener('click', () => {
-            const locDiv = document.createElement('div');
-            locDiv.className = "location-item mb-2";
-            locDiv.innerHTML = \`
-              <input type="text" placeholder="Location Name" class="form-control mb-1 loc-name"/>
-              <input type="text" placeholder="Address" class="form-control mb-1 loc-address"/>
-            \`;
-            document.getElementById('location-list')?.appendChild(locDiv);
-          });
-
-          // Phone input validation
-          const phoneInput = document.getElementById('popup-contact-phone');
-          phoneInput?.addEventListener('input', function () {
-            this.value = this.value.replace(/[^0-9]/g, '').substring(0, 10);
-          });
-        });
+          attachUploadClickHandler(); // Re-bind the click handler
+        }
+        
+        resetSubmitButton();
       """;
 
-      await _controller?.evaluateJavascript(source: jsToInject);
-    } catch (e) {
-      print("Error reading/injecting stored client data: $e");
-    }
-  }
-
-
-Future<void> _submitMeetingData(Map<String, dynamic> formData) async {
-  try {
-    // Check and request location permission
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-
-    if (permission == LocationPermission.deniedForever || permission == LocationPermission.denied) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Location permission denied")),
+      await _controller?.evaluateJavascript(
+        source: '''
+          $clearFormJS
+          resetSubmitButton();
+        ''',
       );
-      return;
+    } catch (e) {
+      print("Error fetching location or submitting meeting: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to submit meeting")));
+      await _controller?.evaluateJavascript(
+        source: '''
+          resetSubmitButton();
+        ''',
+      );
     }
-
-    // Get current location
-    Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-
-    print("Latitude: ${position.latitude}, Longitude: ${position.longitude}");
-
-    final enrichedFormData = {
-      ...formData,
-      "latitude": position.latitude,
-      "longitude": position.longitude,
-    };
-
-    await MeetingsController.submitMeeting(
-      clientId: enrichedFormData["client_id"],
-      email: enrichedFormData["contact_person_email"],
-      mobile: enrichedFormData["contact_person_mobile"],
-      comments: enrichedFormData["comments"],
-      latitude: enrichedFormData["latitude"].toString(),
-      longitude: enrichedFormData["longitude"].toString(),
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Meeting submitted successfully!")),
-    );
-
-    // Clear form fields
-    final clearFormJS = """
-      document.querySelector('select.form-select[placeholder="Contact Person"]').selectedIndex = 0;
-      document.querySelector('input.form-control[placeholder="Contact Person Mobile"]').value = '';
-      document.querySelector('input.form-control[placeholder="Contact Person Email"]').value = '';
-      document.querySelector('textarea.form-control[placeholder="Comments"]').value = '';
-    """;
-
-    await _controller?.evaluateJavascript(source: clearFormJS);
-  } catch (e) {
-    print("Error fetching location or submitting meeting: $e");
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Failed to submit meeting")),
-    );
   }
-}
 
+  void _handlePopupFormSubmit(Map<String, dynamic> data) async {
+    try {
+      print("Received client data from popup:");
+      print(data);
+
+      // Basic validation (optional)
+      if (data['name'] == null ||
+          data['category_id'] == null ||
+          !(data['locations'] is List)) {
+        print("Invalid data format.");
+        return;
+      }
+
+      // Call controller to add client
+      await ClientsController.addClient(data);
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Client added successfully!")));
+    } catch (e) {
+      print("Error handling popup form submission: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to submit client")));
+    }
+  }
 
   String _escapeJS(String value) {
     return value

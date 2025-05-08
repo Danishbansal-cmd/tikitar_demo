@@ -17,6 +17,7 @@ class AuthController {
 
       if ((response['status'] == true || response['status'] == "true") &&
           response['data']?['token'] != null) {
+        ApiBase.setToken(response['data']['token']);
         await TokenStorage.saveToken(response['data']['token']);
         await DataStorage.saveUserData(jsonEncode(response['data']['user']));
       }
@@ -34,13 +35,8 @@ class AuthController {
 
   Future<Map<String, dynamic>> fetchUserData() async {
     try {
-      final token = await TokenStorage.getToken();
-      if (token == null) {
-        return {'status': false, 'message': 'Token not found'};
-      }
-
       // Pass token explicitly to the static GET method
-      final response = await ApiBase.get('/user', token: token);
+      final response = await ApiBase.get('/user');
       print("User Data: $response");
       return response;
     } catch (e) {
