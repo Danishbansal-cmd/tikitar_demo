@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_svg: ^2.0.17  # not using, rather remove or use it
+  # flutter_svg: ^2.0.17  # not using, rather remove or use it
   webview_flutter: ^4.10.0
   shared_preferences: ^2.2.2
   http: ^1.3.0
@@ -19,6 +19,8 @@ dependencies:
   geolocator: ^13.0.4
   file_picker: ^10.1.2
   image_picker: ^1.1.2
+  qr_flutter: ^4.1.0
+  flutter_svg: ^2.1.0
 
 dev_dependencies:
   flutter_test:
@@ -42,3 +44,4 @@ flutter:
     - assets/images/tikitar-logo.png
     - assets/images/tikitar-bar.png
     - assets/images/group.png
+    - assets/svg/warning.svg

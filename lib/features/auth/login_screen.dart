@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:tikitar_demo/features/auth/auth_controller.dart';
-import 'package:tikitar_demo/features/webview/dashboard_screen.dart';
-import 'package:tikitar_demo/features/webview/task_screen.dart';  // Import SVG package
 
 
 class LoginScreen extends StatefulWidget {
@@ -56,8 +53,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Logo
                 Image.asset(
                   'assets/images/tikitar-logo.png',  // logo asset
-                  height: 200,
-                  width: 100,
+                  height: 300,
+                  width: 200,
                 ),
                 const SizedBox(height: 5),
                 // Email Label

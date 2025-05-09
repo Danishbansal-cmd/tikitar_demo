@@ -61,7 +61,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return WebviewCommonScreen(
-      url: "https://tikidemo.com/tikitar-app/dev/dashboard.php",
+      url: "dashboard.php",
       title: "Dashboard",
       onWebViewCreated: (controller) {
         _controller = controller;

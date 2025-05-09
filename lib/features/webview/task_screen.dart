@@ -25,13 +25,13 @@ class _TaskScreenState extends State<TaskScreen> {
   @override
   Widget build(BuildContext context) {
     return WebviewCommonScreen(
-      url: "https://tikidemo.com/tikitar-app/dev/task.php",
+      url: "task.php",
       title: "Task",
       onWebViewCreated: (controller) {
         _controller = controller;
 
         // Add JavaScript handler for clearing form and visiting card
-        controller?.addJavaScriptHandler(
+        controller.addJavaScriptHandler(
           handlerName: 'clearFormAndVisitingCard',
           callback: (args) async {
             setState(() {

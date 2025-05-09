@@ -17,7 +17,7 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
   @override
   Widget build(BuildContext context) {
     return WebviewCommonScreen(
-      url: "https://tikidemo.com/tikitar-app/dev/meeting-list.php",
+      url: "meeting-list.php",
       title: "Meeting List",
       onWebViewCreated: (controller) {
         _controller = controller;

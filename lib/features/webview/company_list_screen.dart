@@ -12,7 +12,7 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
   @override
   Widget build(BuildContext context) {
     return const WebviewCommonScreen(
-      url: "https://tikidemo.com/tikitar-app/dev/company-list.php",
+      url: "company-list.php",
       title: "Company List",
     );
   }
