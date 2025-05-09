@@ -30,6 +30,7 @@ class WebviewCommonScreen extends StatefulWidget {
 }
 
 bool _hasError = false;
+bool _isLoading = true;
 
 class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
   // Removed unused _webViewController field
@@ -38,121 +39,157 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
-      body: _hasError
-        ? _buildErrorView()
-        : InAppWebView(
-            initialUrlRequest: URLRequest(
-              url: WebUri("$baseUrl${widget.url}"),
+      body: Stack(
+        children: [
+          if (_isLoading) Container(
+            color: Colors.white,
+            child: const Center(
+              child: CircularProgressIndicator(),
             ),
-            initialOptions: InAppWebViewGroupOptions(
-              crossPlatform: InAppWebViewOptions(
-                javaScriptEnabled: true,
-                useOnDownloadStart: true,
-                useShouldOverrideUrlLoading: true,
-                mediaPlaybackRequiresUserGesture: false,
-              ),
-              android: AndroidInAppWebViewOptions(
-                useHybridComposition: true,
-              ),
-            ),
-            onWebViewCreated: (controller) {
-              // Removed assignment to _webViewController as it is unused
-              widget.onWebViewCreated?.call(controller);
-            },
-            onLoadStop: (controller, url) async {
-              // Check if the widget is still mounted before proceeding
-              // A State object is considered "mounted" when it is associated
-              //with a BuildContext and is part of the widget tree.
-              if (!mounted || _hasError) return;
-
-              try {
-                final status = await Permission.location.status;
-                final hasPermission = status.isGranted;
-
-                // Inject JavaScript with or without 'add' action
-                await controller.evaluateJavascript(
-                  source: _footerNavigationJS(allowAddTask: hasPermission),
-                );
-
-                // Get user name from SharedPreferences
-                final userData = await DataStorage.getUserData();
-                String userName = 'User';
-
-                if (userData != null) {
-                  final decoded = jsonDecode(userData);
-                  userName = decoded['first_name'] ?? userName;
-                }
-
-                // Get current date formatted
-                final now = DateTime.now();
-                final formattedDate =
-                    "it’s ${_getWeekday(now.weekday)}, ${_getMonth(now.month)} ${now.day}, ${now.year}";
-                final formattedName =
-                    "${_getGreetings(now.hour)}, <span>$userName</span>";
-
-                // Inject JS to update name and date in the profile header
-                await controller.evaluateJavascript(
-                  source: _updateProfileHeaderJS(
-                    userName: formattedName,
-                    formattedDate: formattedDate,
-                  ),
-                );
-
-                widget.onLoadStop?.call(controller, url);
-              } catch (e) {
-                print("Error in onLoadStop: $e");
-              }
-            },
-            // This callback is triggered when the webview 
-            //encounters an error while loading a URL.
-            onLoadError: (controller, url, code, message) {
-              setState(() {
-                _hasError = true;
-              });
-            },
-            // This callback is triggered when the webview 
-            //encounters an HTTP error (e.g., 404 or 500) 
-            //while loading a URL.
-            onLoadHttpError: (controller, url, statusCode, description) {
-              setState(() {
-                _hasError = true;
-              });
-            },
-            // This callback is triggered when a JavaScript
-            // console.log or similar console message is 
-            //executed in the webview.
-            onConsoleMessage: (controller, consoleMessage) async {
-              final message = consoleMessage.message;
-              switch (message) {
-                case "flutter_navigate_to_profile":
-                  Navigator.pushReplacementNamed(context, '/profile');
-                  return;
-                case "flutter_navigate_to_companyList":
-                  Navigator.pushReplacementNamed(context, '/companyList');
-                  return;
-                case "flutter_navigate_to_meetingList":
-                  Navigator.pushReplacementNamed(context, '/meetingList');
-                  return;
-                case "flutter_navigate_to_addTask":
-                  Navigator.pushReplacementNamed(context, '/addTask');
-                  return;
-                case "flutter_navigate_to_dashboard":
-                  Navigator.pushReplacementNamed(context, '/dashboard');
-                  return;
-                case "flutter_navigate_to_logout":
-                  await TokenStorage.clearToken();
-                  await DataStorage.clearUserClientsData();
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/login',
-                    (_) => false,
-                  );
-                  return;
-                default:
-                  widget.onConsoleMessage?.call(consoleMessage);
-              }
-            },
           ),
+          
+          _hasError
+              ? _buildErrorView()
+              : InAppWebView(
+                // this settings help to remove the black screen that appears
+                //when the webview is loading and when moving between screens
+                initialSettings: InAppWebViewSettings(
+                  transparentBackground: true
+                ),
+                initialUrlRequest: URLRequest(
+                  url: WebUri("$baseUrl${widget.url}"),
+                ),
+                initialOptions: InAppWebViewGroupOptions(
+                  crossPlatform: InAppWebViewOptions(
+                    javaScriptEnabled: true,
+                    useOnDownloadStart: true,
+                    useShouldOverrideUrlLoading: true,
+                    mediaPlaybackRequiresUserGesture: false,
+                  ),
+                  android: AndroidInAppWebViewOptions(
+                    useHybridComposition: true,
+                  ),
+                ),
+                onWebViewCreated: (controller) {
+                  widget.onWebViewCreated?.call(controller);
+
+                  // Add JavaScript handler for navigation to company List page
+                  controller.addJavaScriptHandler(
+                    handlerName: 'navigateToCompanyListFromHandler',
+                    callback: (args) {
+                      // injecting the query Parameter "?from=handler" to the URL
+                      // to identify the source of navigation
+                      Navigator.pushReplacementNamed(context, '/companyList', arguments: {'from': 'handler'},);
+                      return null;
+                    },
+                  );
+                },
+                onLoadStop: (controller, url) async {
+                  // Check if the widget is still mounted before proceeding
+                  // A State object is considered "mounted" when it is associated
+                  //with a BuildContext and is part of the widget tree.
+                  if (!mounted || _hasError) return;
+
+                  // Set loading state to true
+                  if (mounted && !_hasError) {
+                    setState(() {
+                      _isLoading = false;
+                    });
+                  }
+
+                  try {
+                    final status = await Permission.location.status;
+                    final hasPermission = status.isGranted;
+
+                    // Inject JavaScript with or without 'add' action
+                    await controller.evaluateJavascript(
+                      source: _footerNavigationJS(allowAddTask: hasPermission),
+                    );
+
+                    // Get user name from SharedPreferences
+                    final userData = await DataStorage.getUserData();
+                    String userName = 'User';
+
+
+                    if (userData != null) {
+                      final decoded = jsonDecode(userData);
+                      userName = decoded['first_name'] ?? userName;
+                    }
+
+                    // Get current date formatted
+                    final now = DateTime.now();
+                    final formattedDate =
+                        "it’s ${_getWeekday(now.weekday)}, ${_getMonth(now.month)} ${now.day}, ${now.year}";
+                    final formattedName =
+                        "${_getGreetings(now.hour)}, <span>$userName</span>";
+
+                    // Inject JS to update name and date in the profile header
+                    await controller.evaluateJavascript(
+                      source: _updateProfileHeaderJS(
+                        userName: formattedName,
+                        formattedDate: formattedDate,
+                      ),
+                    );
+
+                    widget.onLoadStop?.call(controller, url);
+                  } catch (e) {
+                    print("Error in onLoadStop: $e");
+                  }
+                },
+                // This callback is triggered when the webview
+                //encounters an error while loading a URL.
+                onLoadError: (controller, url, code, message) {
+                  setState(() {
+                    _hasError = true;
+                    _isLoading = false;
+                  });
+                },
+                // This callback is triggered when the webview
+                //encounters an HTTP error (e.g., 404 or 500)
+                //while loading a URL.
+                onLoadHttpError: (controller, url, statusCode, description) {
+                  setState(() {
+                    _hasError = true;
+                  });
+                },
+                // This callback is triggered when a JavaScript
+                // console.log or similar console message is
+                //executed in the webview.
+                onConsoleMessage: (controller, consoleMessage) async {
+                  final message = consoleMessage.message;
+                  switch (message) {
+                    case "flutter_navigate_to_profile":
+                      Navigator.pushReplacementNamed(context, '/profile');
+                      return;
+                    case "flutter_navigate_to_companyList":
+                      Navigator.pushReplacementNamed(context, '/companyList');
+                      return;
+                    case "flutter_navigate_to_meetingList":
+                      Navigator.pushReplacementNamed(context, '/meetingList');
+                      return;
+                    case "flutter_navigate_to_addTask":
+                      Navigator.pushReplacementNamed(context, '/addTask');
+                      return;
+                    case "flutter_navigate_to_dashboard":
+                      Navigator.pushReplacementNamed(context, '/dashboard');
+                      return;
+                    case "flutter_navigate_to_logout":
+                      await TokenStorage.clearToken();
+                      await DataStorage.clearUserClientsData();
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/login',
+                        (_) => false,
+                      );
+                      return;
+                    default:
+                      widget.onConsoleMessage?.call(consoleMessage);
+                  }
+                },
+              ),
+              
+        ],
+      ),
     );
   }
 
@@ -287,8 +324,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
     """;
   }
 
-
-  // This method builds the error view when 
+  // This method builds the error view when
   //an error occurs.
   Widget _buildErrorView() {
     return Center(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'package:tikitar_demo/core/network/api_base.dart';
 import 'package:tikitar_demo/features/data/local/token_storage.dart';
@@ -45,7 +46,7 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
       for (int i = 0; i < meetings.length; i++) {
         final meeting = meetings[i];
         final rank = i + 1;
-        final name = _escapeJS(meeting['client']?['name'] ?? '');
+        final name = Functions.escapeJS(meeting['client']?['name'] ?? '');
         // for date, escape new lines and quotes
         final rawDate = meeting['meeting_date'] ?? '';
         String formattedDate = '';
@@ -54,11 +55,11 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
           formattedDate =
               "${parsedDate.year}-${twoDigits(parsedDate.month)}-${twoDigits(parsedDate.day)}";
         } catch (e) {
-          formattedDate = _escapeJS(rawDate);
+          formattedDate = Functions.escapeJS(rawDate);
         }
-        final date = _escapeJS(formattedDate);
+        final date = Functions.escapeJS(formattedDate);
         // for comments, escape new lines and quotes
-        final comments = _escapeJS(meeting['comments'] ?? '');
+        final comments = Functions.escapeJS(meeting['comments'] ?? '');
 
         tableRowsJS += """
           <tr>
@@ -134,15 +135,5 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
     } catch (e) {
       print("Error fetching or injecting meeting data: $e");
     }
-  }
-
-  /// Escapes strings to safely inject into JavaScript
-  String _escapeJS(String? value) {
-    if (value == null) return '';
-    return value
-        .replaceAll(r'\', r'\\')
-        .replaceAll(r'"', r'\"')
-        .replaceAll(r'\n', r'\\n')
-        .replaceAll("'", r"\'");
   }
 }

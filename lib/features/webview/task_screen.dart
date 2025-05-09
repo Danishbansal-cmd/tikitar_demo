@@ -10,6 +10,7 @@ import 'package:tikitar_demo/features/auth/meetings_controller.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
+import 'package:tikitar_demo/common/functions.dart';
 import 'dart:io'; // Add import for File handling
 
 class TaskScreen extends StatefulWidget {
@@ -131,6 +132,13 @@ class _TaskScreenState extends State<TaskScreen> {
         contactMobile &&  (contactMobile.value = selectedOption.getAttribute('data-contact_mobile') || '');
         contactEmail && (contactEmail.value = selectedOption.getAttribute('data-contact_email') || '');
       });
+    });
+
+    // ✅ Navigate to add Company in the company list page
+    // we created the handler in the onWebViewCreated section of the webview_common_screen.dart file
+    // when it is called, it will navigate to the company list page
+    document.querySelectorAll('.addmore')[0]?.addEventListener('click', function() {
+      window.flutter_inappwebview.callHandler('navigateToCompanyListFromHandler');
     });
 
     // ✅ New Person Form Full Popup Button
@@ -328,8 +336,8 @@ class _TaskScreenState extends State<TaskScreen> {
 
       String categoryOptionsHTML = '<option selected>Select Category</option>';
       for (var cat in categories) {
-        final id = _escapeJS(cat['id'].toString());
-        final name = _escapeJS(cat['name'].toString());
+        final id = Functions.escapeJS(cat['id'].toString());
+        final name = Functions.escapeJS(cat['name'].toString());
         categoryOptionsHTML += '<option value="$id">$name</option>';
       }
 
@@ -342,10 +350,10 @@ class _TaskScreenState extends State<TaskScreen> {
       String contactPersonOptionsHTML =
           '<option selected>Contact Person</option>';
       for (var client in clients) {
-        final id = _escapeJS(client['id'].toString());
-        final name = _escapeJS(client['name'].toString());
-        final contact_email = _escapeJS(client['contact_email'].toString());
-        final contact_mobile = _escapeJS(client['contact_phone'].toString());
+        final id = Functions.escapeJS(client['id'].toString());
+        final name = Functions.escapeJS(client['name'].toString());
+        final contact_email = Functions.escapeJS(client['contact_email'].toString());
+        final contact_mobile = Functions.escapeJS(client['contact_phone'].toString());
         contactPersonOptionsHTML +=
             '<option value="$id" data-contact_email="$contact_email" data-contact_mobile="$contact_mobile">$name</option>';
       }
@@ -641,13 +649,5 @@ class _TaskScreenState extends State<TaskScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text("Failed to submit client")));
     }
-  }
-
-  String _escapeJS(String value) {
-    return value
-        .replaceAll(r'\', r'\\')
-        .replaceAll(r'"', r'\"')
-        .replaceAll("'", r"\'")
-        .replaceAll('\n', r'\\n');
   }
 }
