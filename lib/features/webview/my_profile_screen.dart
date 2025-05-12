@@ -18,7 +18,6 @@ class MyProfileScreen extends StatefulWidget {
 }
 
 class _MyProfileScreenState extends State<MyProfileScreen> {
-  InAppWebViewController? _controller;
   String base64String = '';
 
   @override
@@ -26,9 +25,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     return WebviewCommonScreen(
       url: "myprofile.php",
       title: "My Profile",
-      onWebViewCreated: (controller) {
-        _controller = controller;
-      },
       onLoadStop: (controller, url) async {
         // get the response from the API
         late final Map<String, dynamic>? response;

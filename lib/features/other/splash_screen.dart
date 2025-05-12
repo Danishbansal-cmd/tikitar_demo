@@ -13,11 +13,16 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
     _checkLoginStatus();
+  });
   }
 
   Future<void> _checkLoginStatus() async {
     final token = await TokenStorage.getToken();
+
+    if (!mounted) return; // prevent use of context if widget 
+    // is disposed after async call
 
     if (token != null) {
       ApiBase.setToken(token);

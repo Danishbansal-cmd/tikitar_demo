@@ -3,11 +3,13 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services") // Required for Firebase
 }
 
 android {
     namespace = "com.example.tikitar_demo"
     compileSdk = flutter.compileSdkVersion
+    minSdkVersion = 21
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -39,6 +41,12 @@ android {
     }
 }
 
+dependencies {
+    implementation("com.google.firebase:firebase-messaging:23.4.0") // Latest FCM version
+}
+
 flutter {
     source = "../.."
 }
+
+apply(plugin = "com.google.gms.google-services")
