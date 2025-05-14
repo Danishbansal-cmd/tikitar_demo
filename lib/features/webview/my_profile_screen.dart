@@ -3,12 +3,13 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'package:tikitar_demo/core/network/api_base.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'dart:developer' as developer;
+
 
 class MyProfileScreen extends StatefulWidget {
   const MyProfileScreen({super.key});
@@ -18,7 +19,6 @@ class MyProfileScreen extends StatefulWidget {
 }
 
 class _MyProfileScreenState extends State<MyProfileScreen> {
-  InAppWebViewController? _controller;
   String base64String = '';
 
   @override
@@ -26,20 +26,17 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     return WebviewCommonScreen(
       url: "myprofile.php",
       title: "My Profile",
-      onWebViewCreated: (controller) {
-        _controller = controller;
-      },
       onLoadStop: (controller, url) async {
         // get the response from the API
         late final Map<String, dynamic>? response;
         try {
           response = await ApiBase.get('/user');
         } catch (e) {
-          print("Error fetching user data: $e");
+          developer.log("Error fetching user data: $e", name: 'UserProfileWebView', error: e);
           return;
         }
         if (response == null) return;
-        print("response: $response");
+        developer.log("response: $response", name: 'UserProfileWebView');
 
         // for the extraction of the data and the address
         final data = response['data']?['user'];
@@ -66,22 +63,30 @@ END:VCARD
   }
 
   Future<String> generateQrCode(String data) async {
-    final QrValidationResult = QrValidator.validate(
+    final qrValidationResult = QrValidator.validate(
       data: data,
       version: QrVersions.auto,
       errorCorrectionLevel: QrErrorCorrectLevel.L,
     );
 
-    if (QrValidationResult.status != QrValidationStatus.valid) {
+    if (qrValidationResult.status != QrValidationStatus.valid) {
       throw Exception("QR Code generation failed");
     }
 
-    final qrCode = QrValidationResult.qrCode!;
+    final qrCode = qrValidationResult.qrCode!;
     final painter = QrPainter.withQr(
       qr: qrCode,
       gapless: true,
-      color: const Color(0xFF000000),
-      emptyColor: const ui.Color(0xFFFFFFFF),
+      // for the side main dots of the QR code
+      eyeStyle: QrEyeStyle(
+        eyeShape: QrEyeShape.circle,
+        color: const ui.Color(0xFF000000),
+      ),
+      // for the data module or the dots of the QR code
+      dataModuleStyle: QrDataModuleStyle(
+        dataModuleShape: QrDataModuleShape.circle,
+        color: const ui.Color(0xFF000000),
+      ),
       embeddedImage: null,
       embeddedImageStyle: QrEmbeddedImageStyle(size: const Size(40, 40)),
     );
@@ -104,7 +109,7 @@ END:VCARD
   ) async {
     try {
       final data = response['data']?['user'];
-      print("data: $data");
+      developer.log("data: $data", name: 'UserProfileWebView');
 
       if (data != null) {
         final address = data['address'] ?? {};
@@ -140,7 +145,7 @@ END:VCARD
           }
 
 
-          // for default removing the password not match alert
+          // "for default" removing the "password not match" alert
           const passwordDoesNotMatch = document.getElementsByClassName("passwordnotmatch");
           if (passwordDoesNotMatch.length > 0) {
             passwordDoesNotMatch[0].style.display = "none";
@@ -182,7 +187,7 @@ END:VCARD
         await controller.evaluateJavascript(source: js);
       }
     } catch (e) {
-      print("Error injecting user data: $e");
+      developer.log("Error injecting user data: $e", name: 'UserProfileWebView', error: e);
     }
   }
 }

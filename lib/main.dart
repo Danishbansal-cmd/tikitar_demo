@@ -8,7 +8,7 @@ import 'package:tikitar_demo/features/webview/my_profile_screen.dart';
 import 'package:tikitar_demo/features/webview/task_screen.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // 🚨 Ensure this line is there
+  WidgetsFlutterBinding.ensureInitialized(); // Ensure this line is there
   //You're calling SharedPreferences.getInstance() before Flutter is fully ready, 
   //most likely before WidgetsFlutterBinding.ensureInitialized() is called.
   runApp(MyApp());
