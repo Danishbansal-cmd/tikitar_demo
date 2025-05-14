@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'package:tikitar_demo/features/auth/clients_controller.dart';
@@ -12,6 +13,7 @@ class DashboardScreen extends StatefulWidget {
 
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  InAppWebViewController? _controller;
 
   @override
   void initState() {
@@ -61,6 +63,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return WebviewCommonScreen(
       url: "dashboard.php",
       title: "Dashboard",
+      onWebViewCreated: (controller) {
+        _controller = controller;
+      },
       onLoadStop: (controller, url) async {
         await ClientsController.fetchAndStoreClientsData();
       },

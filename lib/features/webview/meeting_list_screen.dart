@@ -13,12 +13,16 @@ class MeetingListScreen extends StatefulWidget {
 }
 
 class _MeetingListScreenState extends State<MeetingListScreen> {
+  InAppWebViewController? _controller;
 
   @override
   Widget build(BuildContext context) {
     return WebviewCommonScreen(
       url: "meeting-list.php",
       title: "Meeting List",
+      onWebViewCreated: (controller) {
+        _controller = controller;
+      },
       onLoadStop: (controller, url) async {
         await _fetchAndInjectMeetings(controller);
       },
