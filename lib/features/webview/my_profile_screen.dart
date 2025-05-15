@@ -10,7 +10,6 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:developer' as developer;
 
-
 class MyProfileScreen extends StatefulWidget {
   const MyProfileScreen({super.key});
 
@@ -20,6 +19,7 @@ class MyProfileScreen extends StatefulWidget {
 
 class _MyProfileScreenState extends State<MyProfileScreen> {
   String base64String = '';
+  InAppWebViewController? _controller;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +32,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         try {
           response = await ApiBase.get('/user');
         } catch (e) {
-          developer.log("Error fetching user data: $e", name: 'UserProfileWebView', error: e);
+          developer.log(
+            "Error fetching user data: $e",
+            name: 'UserProfileWebView',
+            error: e,
+          );
           return;
         }
         if (response == null) return;
@@ -58,6 +62,26 @@ END:VCARD
 
         // Inject the user profile data into the webview
         await _injectJSandUserProfile(controller, response);
+      },
+      onWebViewCreated: (controller) {
+        // Set the controller to the state variable
+        _controller = controller;
+
+        // Set up the JavaScript handler for password change
+        controller.addJavaScriptHandler(
+          handlerName: "SUBMIT_PASSWORD_CHANGE_DATA",
+          callback: (args) {
+            // args[0] is finalPayload from JavaScript
+            developer.log(
+              "Received payload from WebView: ${args[0]}",
+              name: 'UserProfileWebView',
+            );
+
+            // You can now parse and use it
+            final Map<String, dynamic> data = jsonDecode(args[0]);
+            _handlePasswordChangeData(data);
+          },
+        );
       },
     );
   }
@@ -134,16 +158,23 @@ END:VCARD
           const currentPassword = document.getElementById("currentpassword");
           const newPassword = document.getElementById("newpassword");
           const retypePassword = document.getElementById("retypepassword");
-          if(currentPassword){
-            currentPassword.value = "";
-          }
-          if(newPassword){
-            newPassword.value = "";
-          }
-          if(retypePassword){
-            retypePassword.value = "";
+          function clearPasswordFields() {
+            if(currentPassword){
+              currentPassword.value = "";
+            }
+            if(newPassword){
+              newPassword.value = "";
+            }
+            if(retypePassword){
+              retypePassword.value = "";
+            }
           }
 
+          // action to clear the password fields
+          clearPasswordFields();
+
+          // getting the submit button
+          const submitButton = document.querySelector('button[type="submit"].btn.btn-primary.text-uppercase');
 
           // "for default" removing the "password not match" alert
           const passwordDoesNotMatch = document.getElementsByClassName("passwordnotmatch");
@@ -160,10 +191,24 @@ END:VCARD
               event.preventDefault();
 
               // Check if the new password and retype password fields does not match and are empty
-              if (newPassword.value !== retypePassword.value || (retypePassword.value == "" && newPassword.value == "")) {
+              if (newPassword.value != retypePassword.value || (retypePassword.value == "" && newPassword.value == "")) {
                 passwordDoesNotMatch[0].style.display = "block";
               }else {
-              passwordDoesNotMatch[0].style.display = "none";}
+                passwordDoesNotMatch[0].style.display = "none";
+
+                // Replace the confirm button content with a spinner indicator and disable it
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> confirming...';
+
+                const finalPayload = {
+                  "currentpassword": currentPassword.value,
+                  "newpassword": newPassword.value,
+                  "retypepassword": retypePassword.value
+                };
+
+                // Send the data to the Flutter side
+                window.flutter_inappwebview.callHandler("SUBMIT_PASSWORD_CHANGE_DATA", JSON.stringify(finalPayload));
+              }
             };
           }
 
@@ -187,7 +232,80 @@ END:VCARD
         await controller.evaluateJavascript(source: js);
       }
     } catch (e) {
-      developer.log("Error injecting user data: $e", name: 'UserProfileWebView', error: e);
+      developer.log(
+        "Error injecting user data: $e",
+        name: 'UserProfileWebView',
+        error: e,
+      );
+    }
+  }
+
+  Future<void> _handlePasswordChangeData(Map<String, dynamic> data) async {
+    // Handle the password change data here
+    try {
+      final currentPassword = data['currentpassword'];
+      final newPassword = data['newpassword'];
+      final retypePassword = data['retypepassword'];
+
+      if (currentPassword != null &&
+          newPassword != null &&
+          retypePassword != null) {
+        // Call the API to change the password
+        final response = await ApiBase.post('/change-password', {
+          'current_password': currentPassword,
+          'new_password': newPassword,
+          'new_password_confirmation': retypePassword,
+        });
+
+        developer.log("response: $response", name: 'UserProfileWebView');
+        // response:   {status: true, message: Password changed successfully.}
+
+        // if everything goes well it follows from here, shows snackbar and all
+
+        // makes sure the widget is mounted or in the context
+        if (!mounted) return;
+        // to show the message using the snackbar
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response['message'] ?? 'Password changed successfully.',
+            ),
+          ),
+        );
+
+        // clear the password fields, after successfull password change and remove the spinner
+        await _controller?.evaluateJavascript(
+          source: '''
+            clearPasswordFields();
+            // Remove the spinner and enable the button again
+            submitButton.disabled = false;
+            submitButton.innerHTML = 'Confirm';
+            document.getElementsByClassName("mfp-wrap mfp-close-btn-in mfp-auto-cursor mfp-ready")[0].remove();
+          ''',
+        );
+      }
+    } catch (e) {
+      developer.log(
+        "Error handling password change data: $e",
+        name: 'UserProfileWebView',
+        error: e,
+      );
+      
+      // makes sure the widget is mounted or in the context
+      if (!mounted) return;
+      // Handle the error here, e.g., show a message to the user
+      // Show a snackbar or dialog with the error message
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      
+      await _controller?.evaluateJavascript(
+        source: '''
+          // Remove the spinner and enable the confirm button again
+          submitButton.disabled = false;
+          submitButton.innerHTML = 'Confirm';
+        ''',
+      );
     }
   }
 }

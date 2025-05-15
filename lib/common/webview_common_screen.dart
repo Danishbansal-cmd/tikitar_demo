@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:tikitar_demo/common/constants.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'package:tikitar_demo/features/data/local/token_storage.dart';
+import 'dart:developer' as developer;
 
 class WebviewCommonScreen extends StatefulWidget {
   final String url;
@@ -41,20 +42,19 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
       appBar: AppBar(title: Text(widget.title)),
       body: Stack(
         children: [
-          if (_isLoading) Container(
-            color: Colors.white,
-            child: const Center(
-              child: CircularProgressIndicator(),
+          if (_isLoading)
+            Container(
+              color: Colors.white,
+              child: const Center(child: CircularProgressIndicator()),
             ),
-          ),
-          
+
           _hasError
               ? _buildErrorView()
               : InAppWebView(
                 // this settings help to remove the black screen that appears
                 //when the webview is loading and when moving between screens
                 initialSettings: InAppWebViewSettings(
-                  transparentBackground: true
+                  transparentBackground: true,
                 ),
                 initialUrlRequest: URLRequest(
                   url: WebUri("$baseUrl${widget.url}"),
@@ -79,8 +79,63 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                     callback: (args) {
                       // injecting the query Parameter "?from=handler" to the URL
                       // to identify the source of navigation
-                      Navigator.pushReplacementNamed(context, '/companyList', arguments: {'from': 'handler'},);
+                      Navigator.pushReplacementNamed(
+                        context,
+                        '/companyList',
+                        arguments: {'from': 'handler'},
+                      );
                       return null;
+                    },
+                  );
+
+                  controller.addJavaScriptHandler(
+                    handlerName: "HANDLE_NAVIGATION",
+                    callback: (args) async {
+                      // args[0] is finalPayload from JavaScript
+                      developer.log(
+                        "Received payload from webview_common_screen: ${args[0]}",
+                        name: 'WebviewCommonScreen',
+                      );
+
+                      // handling the navigation based on what icon they have clicked
+                      final message = args[0];
+                      switch (message) {
+                        case "flutter_navigate_to_profile":
+                          Navigator.pushReplacementNamed(context, '/profile');
+                          return;
+                        case "flutter_navigate_to_companyList":
+                          Navigator.pushReplacementNamed(
+                            context,
+                            '/companyList',
+                          );
+                          return;
+                        case "flutter_navigate_to_meetingList":
+                          Navigator.pushReplacementNamed(
+                            context,
+                            '/meetingList',
+                          );
+                          return;
+                        case "flutter_navigate_to_addTask":
+                          Navigator.pushReplacementNamed(context, '/addTask');
+                          return;
+                        case "flutter_navigate_to_dashboard":
+                          Navigator.pushReplacementNamed(context, '/dashboard');
+                          return;
+                        case "flutter_navigate_to_logout":
+                          await TokenStorage.clearToken();
+                          await DataStorage.clearUserClientsData();
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/login',
+                            (_) => false,
+                          );
+                          return;
+                        default:
+                          developer.log(
+                            "It should not come here never:",
+                            name: "WebviewCommonScreen",
+                          );
+                      }
                     },
                   );
                 },
@@ -101,15 +156,31 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                     final status = await Permission.location.status;
                     final hasPermission = status.isGranted;
 
+                    // widget.url provides the actual url of the webpage that we are 
+                    // rendering in the current context or in app
+                    final sendUrl = _getActiveIconLabel(widget.url);
+                    developer.log(
+                      "widget.url ${widget.url}",
+                      name: "WebviewCommonScreen",
+                    );
+                    developer.log(
+                      "widget.url $sendUrl",
+                      name: "WebviewCommonScreen",
+                    );
+
                     // Inject JavaScript with or without 'add' action
                     await controller.evaluateJavascript(
-                      source: _footerNavigationJS(allowAddTask: hasPermission),
+                      source: _footerNavigationJS(
+                        allowAddTask: hasPermission,
+                        // added this field to send the label's text, based on which the 
+                        // specific icon is colored
+                        activeIconLabel: sendUrl,
+                      ),
                     );
 
                     // Get user name from SharedPreferences
                     final userData = await DataStorage.getUserData();
                     String userName = 'User';
-
 
                     if (userData != null) {
                       final decoded = jsonDecode(userData);
@@ -152,78 +223,46 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                     _hasError = true;
                   });
                 },
-                // This callback is triggered when a JavaScript
-                // console.log or similar console message is
-                //executed in the webview.
-                onConsoleMessage: (controller, consoleMessage) async {
-                  final message = consoleMessage.message;
-                  switch (message) {
-                    case "flutter_navigate_to_profile":
-                      Navigator.pushReplacementNamed(context, '/profile');
-                      return;
-                    case "flutter_navigate_to_companyList":
-                      Navigator.pushReplacementNamed(context, '/companyList');
-                      return;
-                    case "flutter_navigate_to_meetingList":
-                      Navigator.pushReplacementNamed(context, '/meetingList');
-                      return;
-                    case "flutter_navigate_to_addTask":
-                      Navigator.pushReplacementNamed(context, '/addTask');
-                      return;
-                    case "flutter_navigate_to_dashboard":
-                      Navigator.pushReplacementNamed(context, '/dashboard');
-                      return;
-                    case "flutter_navigate_to_logout":
-                      await TokenStorage.clearToken();
-                      await DataStorage.clearUserClientsData();
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/login',
-                        (_) => false,
-                      );
-                      return;
-                    default:
-                      widget.onConsoleMessage?.call(consoleMessage);
-                  }
-                },
               ),
-              
         ],
       ),
     );
   }
 
-  String _footerNavigationJS({required bool allowAddTask}) {
+  String _footerNavigationJS({
+    required bool allowAddTask,
+    String? activeIconLabel,
+  }) {
     return """
       // Listener for .profile-img
       document.querySelector(".profile-img")?.addEventListener("click", function() {
-        console.log("flutter_navigate_to_profile");
+        window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_profile");
       });
 
       document.querySelector(".menu")?.addEventListener("click", function(e) {
         e.preventDefault();
-        console.log("flutter_navigate_to_dashboard");
+        window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_dashboard");
       });
 
       const footerIcons = document.querySelectorAll(".material-symbols-outlined");
-      footerIcons.forEach((icon) => {
+      footerIcons.forEach((icon, index) => {
         const label = icon.innerText.trim();
 
         if (label === "account_circle") {
           icon.addEventListener("click", function() {
-            console.log("flutter_navigate_to_profile");
+            window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_profile");
           });
         }
 
         if (label === "format_list_numbered") {
           icon.addEventListener("click", function() {
-            console.log("flutter_navigate_to_meetingList");
+            window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_meetingList");
           });
         }
 
         if (label === "factory") {
           icon.addEventListener("click", function() {
-            console.log("flutter_navigate_to_companyList");
+            window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_companyList");
           });
         }
 
@@ -232,18 +271,33 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
           icon.removeAttribute("data-bs-toggle");
           icon.removeAttribute("data-bs-target");
           icon.addEventListener("click", function() {
-            console.log("flutter_navigate_to_addTask");
+            window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_addTask");
           });
           """ : ""}
         }
 
         if (label === "move_item") {
           icon.addEventListener("click", function() {
-            console.log("flutter_navigate_to_logout");
+            window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_logout");
+            icon.style.color = "#fecc00";
           });
+        }
+
+        // style the color to the selected page's icon or label
+        if(label == "$activeIconLabel"){
+          icon.style.color = "#fecc00";
         }
       });
     """;
+  }
+
+  // get the activeIconLabel based on the widget.url that we would pass it
+  String? _getActiveIconLabel(String path) {
+    // for three pages only
+    if (path.contains("myprofile")) return "account_circle";
+    if (path.contains("meeting-list")) return "format_list_numbered";
+    if (path.contains("company-list")) return "factory";
+    return "";
   }
 
   String _getWeekday(int weekday) {
