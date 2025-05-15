@@ -156,7 +156,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                     final status = await Permission.location.status;
                     final hasPermission = status.isGranted;
 
-                    // widget.url provides the actual url of the webpage that we are 
+                    // widget.url provides the actual url of the webpage that we are
                     // rendering in the current context or in app
                     final sendUrl = _getActiveIconLabel(widget.url);
                     developer.log(
@@ -172,7 +172,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                     await controller.evaluateJavascript(
                       source: _footerNavigationJS(
                         allowAddTask: hasPermission,
-                        // added this field to send the label's text, based on which the 
+                        // added this field to send the label's text, based on which the
                         // specific icon is colored
                         activeIconLabel: sendUrl,
                       ),
@@ -186,6 +186,11 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                       final decoded = jsonDecode(userData);
                       userName = decoded['first_name'] ?? userName;
                     }
+
+                    // Change the logo of the User
+                    controller.evaluateJavascript(
+                      source: _changeUserLogo(firstLetter: userName.trim()[0].toUpperCase()),
+                    );
 
                     // Get current date formatted
                     final now = DateTime.now();
@@ -204,7 +209,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
 
                     widget.onLoadStop?.call(controller, url);
                   } catch (e) {
-                    print("Error in onLoadStop: $e");
+                    developer.log("Error in onLoadStop: $e", name: "WebviewCommonScreen", error: e);
                   }
                 },
                 // This callback is triggered when the webview
@@ -234,8 +239,11 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
     String? activeIconLabel,
   }) {
     return """
-      // Listener for .profile-img
-      document.querySelector(".profile-img")?.addEventListener("click", function() {
+      // selecting the tag with class ".profile-img" and storing it
+      const profileImageSelector = document.querySelector(".profile-img");
+      
+      // Adding the Listener for the "profileImageSelector"
+      profileImageSelector?.addEventListener("click", function() {
         window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_profile");
       });
 
@@ -314,7 +322,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
   }
 
   String _getGreetings(int hour) {
-    print("Current hour: $hour");
+    developer.log("Current hour: $hour", name: "WebviewCommonScreen");
     switch (hour) {
       case 0:
       case 1:
@@ -372,7 +380,6 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
           nameSpan.innerHTML = "$userName";
           dateDiv.innerText = "$formattedDate";
           clearInterval(interval);
-          console.log("Profile name and date updated by Flutter.");
         }
       }, 300); // check every 300ms
     """;
@@ -412,4 +419,28 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
       ),
     );
   }
+
+  // this is function to change the Logo on the top right corner
+  // to the first Letter of the userName
+  String _changeUserLogo({String? firstLetter}) {
+  return """
+    profileImageSelector.innerHTML = `
+      <span style="
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        background-color: #fecc00;
+        color: white;
+        font-weight: bold;
+        font-size: 32px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 40px;
+      ">
+        $firstLetter
+      </span>
+    `;
+  """;
+}
+
 }
