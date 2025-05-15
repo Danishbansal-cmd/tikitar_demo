@@ -280,7 +280,10 @@ END:VCARD
             // Remove the spinner and enable the button again
             submitButton.disabled = false;
             submitButton.innerHTML = 'Confirm';
-            document.getElementsByClassName("mfp-wrap mfp-close-btn-in mfp-auto-cursor mfp-ready")[0].remove();
+            const changePasswordFormCloseButton = document.querySelector('button[type="button"].mfp-close');
+            if(changePasswordFormCloseButton){
+              changePasswordFormCloseButton.click();
+            }
           ''',
         );
       }

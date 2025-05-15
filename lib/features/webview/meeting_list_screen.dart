@@ -20,12 +20,13 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
       url: "meeting-list.php",
       title: "Meeting List",
       onLoadStop: (controller, url) async {
-        await _fetchAndInjectMeetings(controller);
+        await fetchAndInjectMeetings(controller);
       },
     );
   }
+}
 
-  Future<void> _fetchAndInjectMeetings(
+Future<void> fetchAndInjectMeetings(
     InAppWebViewController controller,
   ) async {
     final token = await TokenStorage.getToken();
@@ -132,4 +133,3 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
       print("Error fetching or injecting meeting data: $e");
     }
   }
-}
