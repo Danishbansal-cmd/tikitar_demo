@@ -48,60 +48,58 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
           """,
           );
         }
-
-        await injectMoreJS();
+        await injectMoreJS();       
       },
     );
   }
 
-  Future<void> injectMoreJS() async {
-    // Add any additional JavaScript injection here if needed
-    // For example, you can inject a script to handle specific events
-    // or modify the DOM of the loaded page.
-    await _controller?.evaluateJavascript(
-      source: """
-      // Your JavaScript code here
+Future<void> injectMoreJS() async {
+  await _controller?.evaluateJavascript(source: """
+    const fieldIds = [
+      'company', 'city', 'zip', 'state',
+      'fullname', 'mobile', 'whatsappnumber',
+      'email', 'jobtitle'
+    ];
 
+    function resetForm() {
+      fieldIds.forEach(id => {
+        const field = document.getElementById(id);
+        if (field) {
+          field.value = '';
+        }
+      });
+    }
 
-
-      // getting the input fields and setting them to empty
-      // to reset the form
-      const fieldIds = [
-        'company', 'city', 'zip', 'state',
-        'fullname', 'mobile', 'whatsappnumber',
-        'email', 'jobtitle'
-      ];
-      function resetForm(){
-        fieldIds.forEach(id => {
-          const field = document.getElementById(id);
-          if (field) {
-            field.value = '';
-          }
-        });
-      }
-      // initializing the form or emptying the fields
-      resetForm();
-
-
-      // getting the add company button and setting the onclick event
-      // to prevent the default action and check if all fields are filled
-      const addCompanyButton = document.getElementsByClassName('btn btn-primary savecomdetails');
-      if(addCompanyButton.length > 0) {
-        addCompanyButton[0].onclick = function(event) {
-          // Prevents the default action
+    function setupButtonListener() {
+      const saveBtn = document.querySelector('.btn.btn-primary.savecomdetails');
+      if (saveBtn) {
+        saveBtn.onclick = function(event) {
           event.preventDefault();
-
+          let allFilled = true;
           fieldIds.forEach(id => {
             const field = document.getElementById(id);
-            if (field && field.value == '') {
-              throw new Error('Please fill all the fields');
+            if (field && field.value.trim() === '') {
+              allFilled = false;
             }
           });
+          if (!allFilled) {
+            alert('Please fill all the fields');
+          } else {
+            // Proceed with form submission if needed
+          }
         };
       }
+    }
 
-
-    """,
-    );
-  }
+    // Wait until all form fields are available
+    const waitForFields = setInterval(() => {
+      const allExist = fieldIds.every(id => document.getElementById(id));
+      if (allExist) {
+        clearInterval(waitForFields);
+        resetForm();
+        setupButtonListener();
+      }
+    }, 300); // check every 300ms
+  """);
+}
 }
