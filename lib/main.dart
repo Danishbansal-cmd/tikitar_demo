@@ -9,6 +9,7 @@ import 'package:tikitar_demo/features/webview/task_screen.dart';
 
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'dart:developer' as developer;
 
 class DatabaseHelper {
   static final _databaseName = "tikitar.db";
@@ -115,11 +116,11 @@ class _MyAppState extends State<MyApp>{
       'latitude': '28.7041',
       'longitude': '77.1025',
     });
-    print('Inserted ID: $insertedId');
+    developer.log('Inserted ID: $insertedId');
 
     // Retrieve all rows
     List<Map<String, dynamic>> allRows = await dbHelper.retrieveAllData();
-    print('All rows: $allRows');
+    developer.log('All rows: $allRows', name: "Main.dart");
 
     // Update the inserted row
     await dbHelper.updateData({
@@ -131,14 +132,14 @@ class _MyAppState extends State<MyApp>{
 
     // Retrieve again
     List<Map<String, dynamic>> updatedRows = await dbHelper.retrieveAllData();
-    print('After update: $updatedRows');
+    developer.log('After update: $updatedRows', name: "Main.dart");
 
     // Delete the row
     await dbHelper.deleteData(insertedId);
 
     // Check final state
     List<Map<String, dynamic>> finalRows = await dbHelper.retrieveAllData();
-    print('After delete: $finalRows');
+    developer.log('After delete: $finalRows', name: "Main.dart");
 
     // Update UI with current DB data
     setState(() {
@@ -163,7 +164,6 @@ class _MyAppState extends State<MyApp>{
         '/addTask': (context) => TaskScreen(),
         // Add other screens here like '/profile': (context) => ProfileScreen(),
       },
-      // home: WebviewScreen(url: "https://tikidemo.com/tikitar-app/dev/company-list.php#"),
     );
   }
 }

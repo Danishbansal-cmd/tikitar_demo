@@ -1,1 +1,1 @@
-const String baseUrl = "https://tikidemo.com/tikitar-app/dev/";
+const String baseUrl = "https://app.tikitar.com/app_webview/dev/";

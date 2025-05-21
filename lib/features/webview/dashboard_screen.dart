@@ -34,8 +34,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> handleDashboardLoad(InAppWebViewController controller) async {
     await ClientsController.fetchAndStoreClientsData();
 
-    // as the name suggest, fetch and insert the meetings data
-    await fetchAndInjectMeetings(controller);
+    // as the name suggest, fetch and insert the Users Data which are reporting to this user
+    await fetchAndInjectUsers(controller: controller, pageName: "DashboardScreen");
   }
 
   Future<void> _checkAndRequestLocationPermission() async {
