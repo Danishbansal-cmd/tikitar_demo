@@ -13,7 +13,7 @@ import 'dart:developer' as developer;
 
 class DatabaseHelper {
   static final _databaseName = "tikitar.db";
-  static final _databaseVersion = 1;
+  static final _databaseVersion = 2;
 
   static final table = 'locations';
   static final columnId = '_id';
@@ -35,7 +35,9 @@ class DatabaseHelper {
 
   // this opens the database (and creates it if it doesn't exist)
   _initDatabase() async {
+    developer.log("_initDatabase executed", name: "MyApp");
     String path = join(await getDatabasesPath(), _databaseName);
+    await deleteDatabase(path);
     return await openDatabase(
       path,
       version: _databaseVersion,
@@ -49,6 +51,12 @@ class DatabaseHelper {
           )
           ''');
       },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Example: Add a new column instead of dropping the table
+          await db.execute('ALTER TABLE $table ADD COLUMN some_new_column TEXT');
+        }
+      }
     );
   }
 

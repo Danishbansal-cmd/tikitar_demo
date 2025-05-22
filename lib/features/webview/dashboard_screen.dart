@@ -1,9 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'package:tikitar_demo/features/auth/clients_controller.dart';
+import 'package:tikitar_demo/features/auth/user_controller.dart';
+import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
+import 'dart:developer' as developer;
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -13,9 +19,12 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  int userId = 0;
+
   @override
   void initState() {
     super.initState();
+    _initializeDashboard();
     _checkAndRequestLocationPermission();
   }
 
@@ -35,7 +44,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await ClientsController.fetchAndStoreClientsData();
 
     // as the name suggest, fetch and insert the Users Data which are reporting to this user
-    await fetchAndInjectUsers(controller: controller, pageName: "DashboardScreen");
+    await fetchAndInjectUsers(
+      controller: controller,
+      pageName: "DashboardScreen",
+    );
+  }
+
+  Future<void> _initializeDashboard() async {
+    // Get userData from SharedPreferences, to finally get the userId
+    final userData = await DataStorage.getUserData();
+    if (userData != null) {
+      final decoded = jsonDecode(userData);
+      userId = int.tryParse(decoded['id'].toString()) ?? 0;
+    }
+    developer.log("Extracted userId: $userId", name: "DashboardScreen");
   }
 
   Future<void> _checkAndRequestLocationPermission() async {
@@ -79,6 +101,86 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
         );
       }
+    }
+  }
+
+  Future<void> fetchAndInjectUsers({
+    required InAppWebViewController controller,
+    String? pageName,
+  }) async {
+    try {
+      final response = await UserController.specificEmployeesReporting(userId);
+      final users = response['employees'];
+
+      String tableRowsJS = '';
+      for (int i = 0; i < users.length; i++) {
+        final user = users[i];
+        final rank = i + 1;
+        final name = Functions.escapeJS(user['name'] ?? '');
+        final role = Functions.escapeJS(user['role'] ?? '');
+        final id = Functions.escapeJS(user['id'].toString());
+
+        // <td>
+        //   <a class="popup-link" href="#viewuserdetails" data-id="$id" data-name="$name">
+        //     <span class="material-symbols-outlined">
+        //       visibility
+        //     </span>
+        //   </a>
+        // </td>
+        tableRowsJS += """
+            <tr>
+              <td>$rank</td>
+              <td>$name</td>
+              <td>$role</td>
+              <td>
+                <span class="material-symbols-outlined" style="cursor:pointer;" 
+                      onclick="window.flutter_inappwebview.callHandler('onUserViewClick', '$id', '$name')">
+                  visibility
+                </span>
+              </td>
+            </tr>
+          """;
+      }
+
+      // to insert the data into the table, the user will be navigated to the other page
+      // to let the current user view all the meetings of the user
+      // that works under or below them
+      injectTableData(
+        controller: controller,
+        tableRowsDataJS: tableRowsJS,
+        pageName: pageName,
+      );
+    } catch (e) {
+      developer.log("Error: $e", name: "$pageName");
+
+      fetchAndInjectMeetings(
+        controller: controller,
+        pageName: pageName,
+        userId: userId,
+      );
+    }
+  }
+  
+  Future<void> injectTableData({
+    required controller,
+    required String tableRowsDataJS,
+    String? pageName,
+  }) async {
+    try {
+      final fullJS = """
+          const table = document.querySelector('.reporttable');
+          const rows = table.querySelectorAll('tr');
+          for (let i = rows.length - 1; i > 0; i--) {
+            table.deleteRow(i);
+          }
+          table.insertAdjacentHTML('beforeend', `$tableRowsDataJS`); 
+        """;
+      await controller.evaluateJavascript(source: fullJS);
+    } catch (e) {
+      developer.log(
+        "Invalid JS Code: $e",
+        name: "$pageName",
+      );
     }
   }
 }

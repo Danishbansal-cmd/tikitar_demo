@@ -1,13 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
-import 'package:tikitar_demo/core/network/api_base.dart';
+import 'package:tikitar_demo/features/auth/meetings_controller.dart';
 import 'dart:developer' as developer;
-
-import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 
 class MeetingListScreen extends StatefulWidget {
   const MeetingListScreen({super.key});
@@ -38,16 +34,22 @@ Future<void> fetchAndInjectMeetings({
   int? userId,
 }) async {
   try {
-    developer.log("User ID being passed: $userId", name: "$pageName");
-    final response = await ApiBase.get('/meetings/user/$userId');
-    developer.log("Meeting list response: $response", name: "$pageName");
-    final meetings = response['data'] ?? [];
+    developer.log("User ID being passed: $userId", name: "DashboardScreen");
+    final meetingsList = await MeetingsController.userBasedMeetings(userId!);
+    developer.log("Meeting list response: $meetingsList", name: "DashboardScreen");
 
-    String tableRowsJS = '';
+    String tableRowsJS = '''
+      <tr>
+        <th>S. No.</th>
+        <th>Client Name</th>
+        <th>Date</th>
+        <th>View</th>
+      </tr>
+    ''';
     String twoDigits(int n) => n.toString().padLeft(2, '0');
 
-    for (int i = 0; i < meetings.length; i++) {
-      final meeting = meetings[i];
+    for (int i = 0; i < meetingsList.length; i++) {
+      final meeting = meetingsList[i];
       final rank = i + 1;
       // for date, escape new lines and quotes
       final rawDate = meeting['meeting_date'] ?? '';
@@ -66,7 +68,7 @@ Future<void> fetchAndInjectMeetings({
       tableRowsJS += """
           <tr>
             <td>$rank</td>
-            <td>${meeting['user_id']}</td>
+            <td>${meeting['client']['name']}</td>
             <td>$date</td>
             <td>
               <a href="#" class="chat-icon" data-comment="$comments">
@@ -93,76 +95,6 @@ Future<void> fetchAndInjectMeetings({
   }
 }
 
-Future<void> fetchAndInjectUsers({
-  required InAppWebViewController controller,
-  String? pageName,
-}) async {
-  try {
-    // Get userData from SharedPreferences
-    final userData = await DataStorage.getUserData();
-    int userId = 0;
-
-    if (userData != null) {
-      final decoded = jsonDecode(userData);
-      userId = int.tryParse(decoded['id'].toString()) ?? 0;
-    }
-
-    developer.log("Extracted userId: $userId", name: "$pageName");
-
-    final response = await ApiBase.get('/specific-employees/$userId');
-    developer.log("User list response: $response", name: "$pageName");
-
-    if (response['data'] == null) {
-      developer.log("response['data'] was null so here", name: "$pageName");
-      fetchAndInjectMeetings(
-        controller: controller,
-        pageName: pageName,
-        userId: userId,
-      );
-      return;
-    }
-
-    final users = response['data']?['employees'] ?? [];
-
-    String tableRowsJS = '';
-    for (int i = 0; i < users.length; i++) {
-      final user = users[i];
-      final rank = i + 1;
-      final name = Functions.escapeJS(user['name'] ?? '');
-      final role = Functions.escapeJS(user['role'] ?? '');
-
-      tableRowsJS += """
-          <tr>
-            <td>$rank</td>
-            <td>$name</td>
-            <td>$role</td>
-            <td>
-              <a class="popup-link" href="#viewcompanydetails">
-                <span class="material-symbols-outlined">
-                  visibility
-                </span>
-              </a>
-            </td>
-          </tr>
-        """;
-    }
-
-    // to insert the data with comments into the table
-    // here needs to change for the view, to let them view all the meetings of the user
-    // that works under them
-    injectTableDataWithComments(
-      controller: controller,
-      tableRowsDataJS: tableRowsJS,
-      pageName: pageName,
-    );
-  } catch (e) {
-    developer.log(
-      "Error fetching or injecting User Report data: $e",
-      name: "$pageName",
-    );
-  }
-}
-
 Future<void> injectTableDataWithComments({
   required controller,
   required String tableRowsDataJS,
@@ -172,7 +104,7 @@ Future<void> injectTableDataWithComments({
     final fullJS = """
         const table = document.querySelector('.reporttable');
         const rows = table.querySelectorAll('tr');
-        for (let i = rows.length - 1; i > 0; i--) {
+        for (let i = rows.length - 1; i > -1; i--) {
           table.deleteRow(i);
         }
         table.insertAdjacentHTML('beforeend', `$tableRowsDataJS`);

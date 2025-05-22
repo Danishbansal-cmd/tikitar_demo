@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:tikitar_demo/common/constants.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'package:tikitar_demo/features/data/local/token_storage.dart';
+import 'package:tikitar_demo/features/other/user_meetings.dart';
 import 'dart:developer' as developer;
 
 class WebviewCommonScreen extends StatefulWidget {
@@ -138,6 +139,31 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                       }
                     },
                   );
+
+                  controller.addJavaScriptHandler(
+                    // it is the handler to view the user's meeting, when the user
+                    // click on the visibility button in the dashboard page
+                    handlerName: 'onUserViewClick',
+                    callback: (args) async {
+                      final userId = int.tryParse(args[0].toString()) ?? 0;
+                      final userName = args[1]?.toString() ?? '';
+                      developer.log(
+                        "Navigating to meetings of user $userName ($userId)",
+                      );
+                      developer.log("I came here");
+                      developer.log("Clicked userId: $userId");
+
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder:
+                              (context) => UserMeetings(
+                                userId: userId,
+                                userName: userName,
+                              ),
+                        ),
+                      );
+                    },
+                  );
                 },
                 onLoadStop: (controller, url) async {
                   // Check if the widget is still mounted before proceeding
@@ -189,7 +215,9 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
 
                     // Change the logo of the User
                     controller.evaluateJavascript(
-                      source: _changeUserLogo(firstLetter: userName.trim()[0].toUpperCase()),
+                      source: _changeUserLogo(
+                        firstLetter: userName.trim()[0].toUpperCase(),
+                      ),
                     );
 
                     // Get current date formatted
@@ -209,7 +237,11 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
 
                     widget.onLoadStop?.call(controller, url);
                   } catch (e) {
-                    developer.log("Error in onLoadStop: $e", name: "WebviewCommonScreen", error: e);
+                    developer.log(
+                      "Error in onLoadStop: $e",
+                      name: "WebviewCommonScreen",
+                      error: e,
+                    );
                   }
                 },
                 // This callback is triggered when the webview
@@ -423,7 +455,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
   // this is function to change the Logo on the top right corner
   // to the first Letter of the userName
   String _changeUserLogo({String? firstLetter}) {
-  return """
+    return """
     profileImageSelector.innerHTML = `
       <span style="
         display: inline-block;
@@ -441,6 +473,5 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
       </span>
     `;
   """;
-}
-
+  }
 }

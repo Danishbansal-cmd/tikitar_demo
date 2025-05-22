@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'dart:developer' as developer;
 import 'package:tikitar_demo/core/network/api_base.dart';
 import 'package:tikitar_demo/features/data/local/token_storage.dart';
 
@@ -71,6 +72,22 @@ class MeetingsController {
     } catch (e) {
       print("🔥 Error submitting meeting: $e");
       rethrow;
+    }
+  }
+
+  static Future<List<dynamic>> userBasedMeetings(int userId) async{
+    try{
+      final response = await ApiBase.get('/meetings/user/$userId');
+      final data = response['data'];
+      developer.log("Meeting list response: $data", name: "MeetingsController.userBasedMeetings");
+
+      if (data != null && data is List) {
+        return data;
+      } else {
+        throw Exception('No meetings found or wrong data type');
+      }
+    }catch (e){
+      throw Exception('Failed to load the meetings of this user: $e');
     }
   }
 }
