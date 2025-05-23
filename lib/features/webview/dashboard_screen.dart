@@ -5,11 +5,13 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
+import 'package:tikitar_demo/features/auth/categories_controller.dart';
 import 'package:tikitar_demo/features/auth/clients_controller.dart';
 import 'package:tikitar_demo/features/auth/user_controller.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
 import 'dart:developer' as developer;
+import 'package:http/http.dart' as http;
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -26,6 +28,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _initializeDashboard();
     _checkAndRequestLocationPermission();
+    _fetchCategoriesAndStore(); // to get the categories Option and Store it
+    _fetchAllStates(); // to get or fetch all the states
   }
 
   @override
@@ -119,14 +123,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final name = Functions.escapeJS(user['name'] ?? '');
         final role = Functions.escapeJS(user['role'] ?? '');
         final id = Functions.escapeJS(user['id'].toString());
-
-        // <td>
-        //   <a class="popup-link" href="#viewuserdetails" data-id="$id" data-name="$name">
-        //     <span class="material-symbols-outlined">
-        //       visibility
-        //     </span>
-        //   </a>
-        // </td>
         tableRowsJS += """
             <tr>
               <td>$rank</td>
@@ -160,7 +156,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
   }
-  
+
   Future<void> injectTableData({
     required controller,
     required String tableRowsDataJS,
@@ -177,9 +173,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
         """;
       await controller.evaluateJavascript(source: fullJS);
     } catch (e) {
+      developer.log("Invalid JS Code: $e", name: "$pageName");
+    }
+  }
+
+  Future<void> _fetchCategoriesAndStore() async {
+    try {
+      // Fetch categories first
+      final categories = await CategoryController.fetchCategories();
+      developer.log("categories data $categories", name: "DashboardScreen");
+      // save it in sharedPreference store
+      DataStorage.saveCategoryOptionsData(jsonEncode(categories));
+    } catch (e) {
       developer.log(
-        "Invalid JS Code: $e",
-        name: "$pageName",
+        "Error _fetchCategoriesAndStore(): $e",
+        name: "DashboardScreen",
+      );
+    }
+  }
+
+  Future<void> _fetchAllStates() async {
+    const String url =
+        'https://api.data.gov.in/resource/a71e60f0-a21d-43de-a6c5-fa5d21600cdb';
+    const String apiKey =
+        '579b464db66ec23bdd000001cdc3b564546246a772a26393094f5645';
+
+    var response = await http.get(
+      Uri.parse('$url?api-key=$apiKey&offset=0&limit=all&format=json'),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      developer.log('Title: ${data['title']}', name: "DashboardScreen");
+
+      List records = data['records'] ?? [];
+      // Extract and store unique state names
+      List<String> stateNames =
+          records
+              .map((record) => record['state_name_english'] as String?)
+              .whereType<String>() // filters out nulls
+              .toSet() // optional: remove duplicates
+              .toList();
+
+      developer.log(
+        "states name data: ${stateNames.toString()}",
+        name: "DashboardScreen",
+      );
+      await DataStorage.saveStateNames(stateNames);
+    } else {
+      developer.log(
+        'Failed to load Sates name data: ${response.statusCode}',
+        name: "DashboardScreen",
       );
     }
   }

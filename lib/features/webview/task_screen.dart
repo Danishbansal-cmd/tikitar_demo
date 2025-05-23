@@ -12,6 +12,7 @@ import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 import 'package:tikitar_demo/common/functions.dart';
 import 'dart:io'; // Add import for File handling
+import 'dart:developer' as developer;
 
 class TaskScreen extends StatefulWidget {
   @override
@@ -22,6 +23,14 @@ class _TaskScreenState extends State<TaskScreen> {
   InAppWebViewController? _controller;
   List<Map<String, dynamic>> fields = [];
   File? _visitedCardFile; // Variable to hold the selected file
+  String categoryOptionsHTML = ''; // store the categoryOptions
+  String stateOptionsHTML = ''; // store the stateOptions
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchStoredStaticData(); // fetch all the static data
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +67,7 @@ class _TaskScreenState extends State<TaskScreen> {
         );
       },
       onLoadStop: (controller, url) async {
-        await fetchCategoriesAndCurrentUsersClientsAndInjectJS();
+        await fetchCurrentUsersClientsAndInjectJS();
       },
       onConsoleMessage: (consoleMessage) {
         if (consoleMessage.messageLevel == ConsoleMessageLevel.LOG) {
@@ -104,6 +113,9 @@ class _TaskScreenState extends State<TaskScreen> {
       inner.style.borderRadius = '10px';
       inner.style.maxHeight = '90vh';
       inner.style.overflowY = 'auto';
+      inner.style.maxWidth = '80%';
+      inner.style.boxSizing = 'border-box';
+
       inner.innerHTML = content;
 
       popup.appendChild(inner);
@@ -135,8 +147,28 @@ class _TaskScreenState extends State<TaskScreen> {
     });
 
     // ✅ Add Company button
-    document.querySelectorAll('.addmore')[0]?.addEventListener('click', function() {
-      window.flutter_inappwebview.callHandler('');
+    document.querySelectorAll('.addmore')[0]?.addEventListener('click', function(e) {
+      e.preventDefault();
+      const companyDialogHTML = \`
+        <h5>Add New Company</h5>
+        <input type="text" placeholder="Company Name" id="popup-name" class="form-control mb-1"/>
+        <input type="text" placeholder="City" class="form-control mb-1 loc-city"/>
+        <input type="text" placeholder="Zip" class="form-control mb-1 loc-zip"/>
+        <select id="popup-states" class="form-select">
+          $stateOptionsHTML
+        </select><br/>
+        <select id="popup-category" class="form-select mb-1">
+          $categoryOptionsHTML
+        </select><br/>
+        <button id="popup-close" class="btn btn-danger me-2">Close</button>
+        <button id="submit-client" class="btn btn-primary">Save</button>
+      \`;
+      createPopup(companyDialogHTML);
+
+
+      document.getElementById('popup-close')?.addEventListener('click', () => {
+        document.getElementById('flutter-popup')?.remove();
+      });
     });
 
     // ✅ New Person Form Full Popup Button
@@ -164,7 +196,7 @@ class _TaskScreenState extends State<TaskScreen> {
         </div>
         <button id="add-location" class="btn btn-secondary btn-sm mb-3">Add Another Location</button><br/>
         <button id="popup-close" class="btn btn-danger me-2">Close</button>
-        <button id="submit-client" class="btn btn-primary">Submit Client</button>
+        <button id="submit-client" class="btn btn-primary">Save</button>
       \`;
       createPopup(html);
 
@@ -327,18 +359,8 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   // Fetch categories and current user's clients, then inject JS into the web view
-  Future<void> fetchCategoriesAndCurrentUsersClientsAndInjectJS() async {
+  Future<void> fetchCurrentUsersClientsAndInjectJS() async {
     try {
-      // Fetch categories first
-      final categories = await CategoryController.fetchCategories();
-
-      String categoryOptionsHTML = '<option selected>Select Category</option>';
-      for (var cat in categories) {
-        final id = Functions.escapeJS(cat['id'].toString());
-        final name = Functions.escapeJS(cat['name'].toString());
-        categoryOptionsHTML += '<option value="$id">$name</option>';
-      }
-
       // Fetch current user's clients
       final storedData = await DataStorage.getUserClientsData();
       if (storedData == null) return;
@@ -350,8 +372,12 @@ class _TaskScreenState extends State<TaskScreen> {
       for (var client in clients) {
         final id = Functions.escapeJS(client['id'].toString());
         final name = Functions.escapeJS(client['name'].toString());
-        final contact_email = Functions.escapeJS(client['contact_email'].toString());
-        final contact_mobile = Functions.escapeJS(client['contact_phone'].toString());
+        final contact_email = Functions.escapeJS(
+          client['contact_email'].toString(),
+        );
+        final contact_mobile = Functions.escapeJS(
+          client['contact_phone'].toString(),
+        );
         contactPersonOptionsHTML +=
             '<option value="$id" data-contact_email="$contact_email" data-contact_mobile="$contact_mobile">$name</option>';
       }
@@ -365,7 +391,10 @@ class _TaskScreenState extends State<TaskScreen> {
         contactPersonOptions: contactPersonOptionsHTML,
       );
     } catch (e) {
-      print("Error loading categories and clients: $e");
+      developer.log(
+        "Error fetchCurrentUsersClientsAndInjectJS(): $e",
+        name: "TaskScreen",
+      );
     }
   }
 
@@ -646,6 +675,36 @@ class _TaskScreenState extends State<TaskScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Failed to submit client")));
+    }
+  }
+
+  Future<void> _fetchStoredStaticData() async {
+    try {
+      // Fetch categories first from sharedPreferences
+      final categories = await DataStorage.getCategoryOptionsData();
+      if (categories == null) return;
+
+      final categoriesData = jsonDecode(categories) as List<dynamic>;
+
+      categoryOptionsHTML = '<option selected>Select Category</option>';
+      for (var cat in categoriesData) {
+        final id = Functions.escapeJS(cat['id'].toString());
+        final name = Functions.escapeJS(cat['name'].toString());
+        categoryOptionsHTML += '<option value="$id">$name</option>';
+      }
+
+      // Fetch categories first from sharedPreferences
+      final statesData = await DataStorage.getStateNames() as List<dynamic>;
+      if (statesData.isEmpty) return;
+
+      stateOptionsHTML = '<option selected>Select Select</option>';
+      for (int i = 0; i < statesData.length; i++) {
+        final name = Functions.escapeJS(statesData[i].toString());
+        stateOptionsHTML +=
+            '<option value="${(i + 1).toString()}">$name</option>';
+      }
+    } catch (e) {
+      developer.log("Error _fetchStoredStaticData(): $e", name: "TaskScreen");
     }
   }
 }

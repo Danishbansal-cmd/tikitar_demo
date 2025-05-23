@@ -1,4 +1,5 @@
 import 'package:tikitar_demo/core/network/api_base.dart';
+import 'dart:developer' as developer;
 
 class CategoryController {
 
@@ -6,7 +7,7 @@ class CategoryController {
     try {
       final response = await ApiBase.get('/categories');
       final data = response['data'];
-      print("Categoreis from controller: $data");
+      developer.log("Categoreis from controller: $data", name: "CategoryController.fetchCategories");
 
       if (data != null && data is List && data.isNotEmpty) {
         return List<Map<String, dynamic>>.from(data);
