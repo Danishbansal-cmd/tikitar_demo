@@ -134,11 +134,9 @@ class _TaskScreenState extends State<TaskScreen> {
       });
     });
 
-    // ✅ Navigate to add Company in the company list page
-    // we created the handler in the onWebViewCreated section of the webview_common_screen.dart file
-    // when it is called, it will navigate to the company list page
+    // ✅ Add Company button
     document.querySelectorAll('.addmore')[0]?.addEventListener('click', function() {
-      window.flutter_inappwebview.callHandler('navigateToCompanyListFromHandler');
+      window.flutter_inappwebview.callHandler('');
     });
 
     // ✅ New Person Form Full Popup Button

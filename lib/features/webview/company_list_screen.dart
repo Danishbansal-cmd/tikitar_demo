@@ -56,16 +56,6 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
       },
       onLoadStop: (controller, url) async {
         // You can add any additional logic here if needed
-        if (from == 'handler') {
-          await controller.evaluateJavascript(
-            source: """
-            const addCompanyButton = document.querySelector('a.addcomp.popup-link[href="#addcomponydetails"]');
-            if (addCompanyButton) {
-              addCompanyButton.click();
-            }
-          """,
-          );
-        }
         await injectMoreJS();
       },
     );
@@ -107,7 +97,6 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
                 alert('Please fill all the fields');
               } else {
                 // Proceed with form submission if needed
-
                 // Replace the save button content with a spinner indicator and disable it
                 saveBtn.disabled = true;
                 saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';

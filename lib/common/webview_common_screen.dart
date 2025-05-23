@@ -74,21 +74,6 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                 onWebViewCreated: (controller) {
                   widget.onWebViewCreated?.call(controller);
 
-                  // Add JavaScript handler for navigation to company List page
-                  controller.addJavaScriptHandler(
-                    handlerName: 'navigateToCompanyListFromHandler',
-                    callback: (args) {
-                      // injecting the query Parameter "?from=handler" to the URL
-                      // to identify the source of navigation
-                      Navigator.pushReplacementNamed(
-                        context,
-                        '/companyList',
-                        arguments: {'from': 'handler'},
-                      );
-                      return null;
-                    },
-                  );
-
                   controller.addJavaScriptHandler(
                     handlerName: "HANDLE_NAVIGATION",
                     callback: (args) async {
