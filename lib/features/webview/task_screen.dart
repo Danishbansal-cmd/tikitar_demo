@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'package:tikitar_demo/features/auth/categories_controller.dart';
 import 'package:tikitar_demo/features/auth/clients_controller.dart';
+import 'package:tikitar_demo/features/auth/company_controller.dart';
 import 'package:tikitar_demo/features/auth/meetings_controller.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'dart:convert';
@@ -63,6 +64,13 @@ class _TaskScreenState extends State<TaskScreen> {
             setState(() {
               _visitedCardFile = null; // Clear the selected file in Flutter
             });
+          },
+        );
+
+        _controller?.addJavaScriptHandler(
+          handlerName: 'saveOnlyCompanyData',
+          callback: (args) {
+            _saveOnlyCompanyData(name: args[0], city: args[1], zip: args[2], state: args[3], categoryId: args[4]);
           },
         );
       },
@@ -161,13 +169,29 @@ class _TaskScreenState extends State<TaskScreen> {
           $categoryOptionsHTML
         </select><br/>
         <button id="popup-close" class="btn btn-danger me-2">Close</button>
-        <button id="submit-client" class="btn btn-primary">Save</button>
+        <button id="submit-company" class="btn btn-primary">Save</button>
       \`;
       createPopup(companyDialogHTML);
 
-
       document.getElementById('popup-close')?.addEventListener('click', () => {
         document.getElementById('flutter-popup')?.remove();
+      });
+
+      document.getElementById('submit-company')?.addEventListener('click', function(e){
+        e.preventDefault();
+
+        const name = document.getElementById("popup-name").value;
+        const city = document.querySelector(".loc-city").value;
+        const zip = document.querySelector(".loc-zip").value;
+        const statesDropdown = document.getElementById("popup-states");
+        const statesDropdownValue = statesDropdown.value;
+        const selectedStateText = statesDropdown.options[statesDropdownValue].text;
+        const category = parseInt(document.querySelector("#popup-category").value || "0");
+
+        console.log("name: ", name, city, zip, category);
+        console.log("selectedStateText: ", selectedStateText, statesDropdownValue);
+
+        window.flutter_inappwebview.callHandler('saveOnlyCompanyData', name, city, zip, selectedStateText, category);
       });
     });
 
@@ -705,6 +729,33 @@ class _TaskScreenState extends State<TaskScreen> {
       }
     } catch (e) {
       developer.log("Error _fetchStoredStaticData(): $e", name: "TaskScreen");
+    }
+  }
+
+  Future<void> _saveOnlyCompanyData({String? name, String? city, String? zip, String? state, int? categoryId}) async {
+    if ([name, city, zip, state, categoryId].any((e) => e == null || (e is String && e.trim().isEmpty))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please fill in all fields")),
+      );
+      return;
+    }
+
+    final response = await CompanyController.saveOnlyCompany(
+      name: name!,
+      city: city!,
+      zip: zip!,
+      state: state!,
+      categoryId: categoryId!,
+    );
+
+    if (response['status'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Company saved successfully.")),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to save company: ${response['message'] ?? 'Unknown error'}")),
+      );
     }
   }
 }
