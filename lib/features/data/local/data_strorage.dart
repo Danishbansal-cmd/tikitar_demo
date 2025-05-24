@@ -22,22 +22,6 @@ class DataStorage {
     await prefs.remove('user_data');
   }
 
-  // save user clients data
-  static Future<void> saveUserClientsData(String data) async {
-    final prefs = await _instance;
-    await prefs.setString('user_clients_data', data);
-  }
-
-  static Future<String?> getUserClientsData() async {
-    final prefs = await _instance;
-    return prefs.getString('user_clients_data');
-  }
-
-  static Future<void> clearUserClientsData() async {
-    final prefs = await _instance;
-    await prefs.remove('user_clients_data');
-  }
-
   static Future<void> saveCategoryOptionsData(String data) async {
     final prefs = await _instance;
     await prefs.setString('category_options', data);

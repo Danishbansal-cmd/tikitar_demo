@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
-import 'package:tikitar_demo/features/auth/categories_controller.dart';
 import 'package:tikitar_demo/features/auth/clients_controller.dart';
 import 'package:tikitar_demo/features/auth/company_controller.dart';
 import 'package:tikitar_demo/features/auth/meetings_controller.dart';
@@ -26,11 +25,15 @@ class _TaskScreenState extends State<TaskScreen> {
   File? _visitedCardFile; // Variable to hold the selected file
   String categoryOptionsHTML = ''; // store the categoryOptions
   String stateOptionsHTML = ''; // store the stateOptions
+  String companyOptionsHTML = ''; // store the companyOptions
+  int userId = 0;
 
   @override
   void initState() {
     super.initState();
     _fetchStoredStaticData(); // fetch all the static data
+    _initializeTaskScreen();
+    _fetchCompaniesData();
   }
 
   @override
@@ -70,12 +73,18 @@ class _TaskScreenState extends State<TaskScreen> {
         _controller?.addJavaScriptHandler(
           handlerName: 'saveOnlyCompanyData',
           callback: (args) {
-            _saveOnlyCompanyData(name: args[0], city: args[1], zip: args[2], state: args[3], categoryId: args[4]);
+            _saveOnlyCompanyData(
+              name: args[0],
+              city: args[1],
+              zip: args[2],
+              state: args[3],
+              categoryId: args[4],
+            );
           },
         );
       },
       onLoadStop: (controller, url) async {
-        await fetchCurrentUsersClientsAndInjectJS();
+        // await fetchCurrentUsersClientsAndInjectJS();
       },
       onConsoleMessage: (consoleMessage) {
         if (consoleMessage.messageLevel == ConsoleMessageLevel.LOG) {
@@ -140,6 +149,16 @@ class _TaskScreenState extends State<TaskScreen> {
     if(contactEmail){
       contactEmail.disabled = true;
     }
+
+    // Contact Person select field injection
+    const selects = document.querySelectorAll('select.form-select[placeholder="Company Name"]');
+    selects.forEach(select => {
+      select.innerHTML = `$companyOptionsHTML`;
+
+      select.addEventListener('change', function (){
+        const selectedOption = this.options[this.selectedIndex];
+      });
+    });
 
     // Contact Person select field injection
     const selects = document.querySelectorAll('select.form-select[placeholder="Contact Person"]');
@@ -383,44 +402,44 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   // Fetch categories and current user's clients, then inject JS into the web view
-  Future<void> fetchCurrentUsersClientsAndInjectJS() async {
-    try {
-      // Fetch current user's clients
-      final storedData = await DataStorage.getUserClientsData();
-      if (storedData == null) return;
+  // Future<void> fetchCurrentUsersClientsAndInjectJS() async {
+  //   try {
+  //     // Fetch current user's clients
+  //     // final storedData = await DataStorage.getUserClientsData();
+  //     if (storedData == null) return;
 
-      final clients = jsonDecode(storedData) as List<dynamic>;
+  //     final clients = jsonDecode(storedData) as List<dynamic>;
 
-      String contactPersonOptionsHTML =
-          '<option selected>Contact Person</option>';
-      for (var client in clients) {
-        final id = Functions.escapeJS(client['id'].toString());
-        final name = Functions.escapeJS(client['name'].toString());
-        final contact_email = Functions.escapeJS(
-          client['contact_email'].toString(),
-        );
-        final contact_mobile = Functions.escapeJS(
-          client['contact_phone'].toString(),
-        );
-        contactPersonOptionsHTML +=
-            '<option value="$id" data-contact_email="$contact_email" data-contact_mobile="$contact_mobile">$name</option>';
-      }
+  //     String contactPersonOptionsHTML =
+  //         '<option selected>Contact Person</option>';
+  //     for (var client in clients) {
+  //       final id = Functions.escapeJS(client['id'].toString());
+  //       final name = Functions.escapeJS(client['name'].toString());
+  //       final contact_email = Functions.escapeJS(
+  //         client['contact_email'].toString(),
+  //       );
+  //       final contact_mobile = Functions.escapeJS(
+  //         client['contact_phone'].toString(),
+  //       );
+  //       contactPersonOptionsHTML +=
+  //           '<option value="$id" data-contact_email="$contact_email" data-contact_mobile="$contact_mobile">$name</option>';
+  //     }
 
-      // Now inject both category and contact person options into the web view
-      print("Categories HTML: $categoryOptionsHTML");
-      print("Contact Person Options HTML: $contactPersonOptionsHTML");
+  //     // Now inject both category and contact person options into the web view
+  //     print("Categories HTML: $categoryOptionsHTML");
+  //     print("Contact Person Options HTML: $contactPersonOptionsHTML");
 
-      await injectWebJS(
-        categoryOptions: categoryOptionsHTML,
-        contactPersonOptions: contactPersonOptionsHTML,
-      );
-    } catch (e) {
-      developer.log(
-        "Error fetchCurrentUsersClientsAndInjectJS(): $e",
-        name: "TaskScreen",
-      );
-    }
-  }
+  //     await injectWebJS(
+  //       categoryOptions: categoryOptionsHTML,
+  //       contactPersonOptions: contactPersonOptionsHTML,
+  //     );
+  //   } catch (e) {
+  //     developer.log(
+  //       "Error fetchCurrentUsersClientsAndInjectJS(): $e",
+  //       name: "TaskScreen",
+  //     );
+  //   }
+  // }
 
   // Inject JavaScript into the web view
   Future<void> injectWebJS({
@@ -717,7 +736,7 @@ class _TaskScreenState extends State<TaskScreen> {
         categoryOptionsHTML += '<option value="$id">$name</option>';
       }
 
-      // Fetch categories first from sharedPreferences
+      // Fetch states from sharedPreferences
       final statesData = await DataStorage.getStateNames() as List<dynamic>;
       if (statesData.isEmpty) return;
 
@@ -732,11 +751,23 @@ class _TaskScreenState extends State<TaskScreen> {
     }
   }
 
-  Future<void> _saveOnlyCompanyData({String? name, String? city, String? zip, String? state, int? categoryId}) async {
-    if ([name, city, zip, state, categoryId].any((e) => e == null || (e is String && e.trim().isEmpty))) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Please fill in all fields")),
-      );
+  Future<void> _saveOnlyCompanyData({
+    String? name,
+    String? city,
+    String? zip,
+    String? state,
+    int? categoryId,
+  }) async {
+    if ([
+      name,
+      city,
+      zip,
+      state,
+      categoryId,
+    ].any((e) => e == null || (e is String && e.trim().isEmpty))) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Please fill in all fields")));
       return;
     }
 
@@ -749,13 +780,36 @@ class _TaskScreenState extends State<TaskScreen> {
     );
 
     if (response['status'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Company saved successfully.")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Company saved successfully.")));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to save company: ${response['message'] ?? 'Unknown error'}")),
+        SnackBar(
+          content: Text(
+            "Failed to save company: ${response['message'] ?? 'Unknown error'}",
+          ),
+        ),
       );
     }
+  }
+
+  void _fetchCompaniesData() async {
+    final response = await CompanyController.getOnlyCompanies(userId);
+
+    if (response['status'] == true) {
+      
+      developer.log("_fetchCompaniesData successfully ${response['data']}", name: "TaskScreen");
+    } 
+  }
+
+  Future<void> _initializeTaskScreen() async {
+    // Get userData from SharedPreferences, to finally get the userId
+    final userData = await DataStorage.getUserData();
+    if (userData != null) {
+      final decoded = jsonDecode(userData);
+      userId = int.tryParse(decoded['id'].toString()) ?? 0;
+    }
+    developer.log("Extracted userId: $userId", name: "DashboardScreen");
   }
 }

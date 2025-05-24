@@ -17,7 +17,6 @@ class ClientsController {
 
       if (data != null && data is List && data.isNotEmpty) {
         final jsonToStore = jsonEncode(data);
-        await DataStorage.saveUserClientsData(jsonToStore);
         printLongString("All client data stored: $jsonToStore");
       }
     } catch (e) {

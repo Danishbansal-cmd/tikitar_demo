@@ -109,7 +109,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                           return;
                         case "flutter_navigate_to_logout":
                           await TokenStorage.clearToken();
-                          await DataStorage.clearUserClientsData();
+                          await DataStorage.clearUserData();
                           Navigator.pushNamedAndRemoveUntil(
                             context,
                             '/login',
