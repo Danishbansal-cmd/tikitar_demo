@@ -56,7 +56,7 @@ class _UserMeetingsState extends State<UserMeetings> {
       setState(() => isLoading = false);
     } catch (e) {
       developer.log("Failed to fetch meetings: $e");
-      setState(() => isLoading = false);
+      // setState(() => isLoading = false);
     }
   }
 

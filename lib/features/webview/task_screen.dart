@@ -26,6 +26,7 @@ class _TaskScreenState extends State<TaskScreen> {
   String categoryOptionsHTML = ''; // store the categoryOptions
   String stateOptionsHTML = ''; // store the stateOptions
   String companyOptionsHTML = ''; // store the companyOptions
+  String contactPersonOptionsHTML = '';
   int userId = 0;
 
   @override
@@ -34,6 +35,7 @@ class _TaskScreenState extends State<TaskScreen> {
     _fetchStoredStaticData(); // fetch all the static data
     _initializeTaskScreen();
     _fetchCompaniesData();
+    // _fetchCurrentUsersClients();
   }
 
   @override
@@ -84,7 +86,7 @@ class _TaskScreenState extends State<TaskScreen> {
         );
       },
       onLoadStop: (controller, url) async {
-        // await fetchCurrentUsersClientsAndInjectJS();
+        await injectWebJS();
       },
       onConsoleMessage: (consoleMessage) {
         if (consoleMessage.messageLevel == ConsoleMessageLevel.LOG) {
@@ -105,7 +107,7 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   // JavaScript code to inject into the web view
-  String baseJS(String contactPersonOptions, String categoryOptions) {
+  String baseJS() {
     return """
     function createPopup(content) {
       const existingPopup = document.getElementById('flutter-popup');
@@ -150,28 +152,32 @@ class _TaskScreenState extends State<TaskScreen> {
       contactEmail.disabled = true;
     }
 
-    // Contact Person select field injection
-    const selects = document.querySelectorAll('select.form-select[placeholder="Company Name"]');
-    selects.forEach(select => {
-      select.innerHTML = `$companyOptionsHTML`;
+    // ❌❌❌ main error is occuring here,
+    // ❌❌❌ fix once apis are corrected
+    // // Company select field data injection
+    // const selects = document.querySelectorAll('select.form-select[placeholder="Company Name"]');
+    // selects.forEach(select => {
+    //   select.innerHTML = `$companyOptionsHTML`;
 
-      select.addEventListener('change', function (){
-        const selectedOption = this.options[this.selectedIndex];
-      });
-    });
+    //   select.addEventListener('change', function (){
+    //     const selectedOption = this.options[this.selectedIndex];
+    //   });
+    // });
 
-    // Contact Person select field injection
-    const selects = document.querySelectorAll('select.form-select[placeholder="Contact Person"]');
-    selects.forEach(select => {
-      select.innerHTML = `$contactPersonOptions`;
+    // ❌❌❌ main error is occuring here
+    // ❌❌❌ fix once apis are corrected
+    // // Contact Person select field injection
+    // const selects = document.querySelectorAll('select.form-select[placeholder="Contact Person"]');
+    // selects.forEach(select => {
+    //   select.innerHTML = `$contactPersonOptionsHTML`;
 
-      select.addEventListener('change', function (){
-        const selectedOption = this.options[this.selectedIndex];
+    //   select.addEventListener('change', function (){
+    //     const selectedOption = this.options[this.selectedIndex];
 
-        contactMobile &&  (contactMobile.value = selectedOption.getAttribute('data-contact_mobile') || '');
-        contactEmail && (contactEmail.value = selectedOption.getAttribute('data-contact_email') || '');
-      });
-    });
+    //     contactMobile &&  (contactMobile.value = selectedOption.getAttribute('data-contact_mobile') || '');
+    //     contactEmail && (contactEmail.value = selectedOption.getAttribute('data-contact_email') || '');
+    //   });
+    // });
 
     // ✅ Add Company button
     document.querySelectorAll('.addmore')[0]?.addEventListener('click', function(e) {
@@ -221,7 +227,7 @@ class _TaskScreenState extends State<TaskScreen> {
         <h5>Add New Client</h5>
         <input type="text" placeholder="Name" id="popup-name" class="form-control mb-1"/>
         <select id="popup-category" class="form-select">
-          $categoryOptions
+          $categoryOptionsHTML
         </select><br/>
         <div id="location-list">
           <h6>Locations</h6>
@@ -312,6 +318,7 @@ class _TaskScreenState extends State<TaskScreen> {
           locations: locations
         };
 
+        // ❌❌❌ fix once apis are corrected
         console.log("SUBMIT_CLIENT_DATA::" + JSON.stringify(finalPayload));
         document.getElementById('flutter-popup')?.remove();
       });
@@ -337,6 +344,7 @@ class _TaskScreenState extends State<TaskScreen> {
           comments: comments
         };
 
+        // ❌❌❌ fix once apis are corrected
         console.log("MAIN_SUBMIT::" + JSON.stringify(data));
 
         // After submission, notify Flutter to clear the form and visiting card
@@ -401,52 +409,10 @@ class _TaskScreenState extends State<TaskScreen> {
   """;
   }
 
-  // Fetch categories and current user's clients, then inject JS into the web view
-  // Future<void> fetchCurrentUsersClientsAndInjectJS() async {
-  //   try {
-  //     // Fetch current user's clients
-  //     // final storedData = await DataStorage.getUserClientsData();
-  //     if (storedData == null) return;
-
-  //     final clients = jsonDecode(storedData) as List<dynamic>;
-
-  //     String contactPersonOptionsHTML =
-  //         '<option selected>Contact Person</option>';
-  //     for (var client in clients) {
-  //       final id = Functions.escapeJS(client['id'].toString());
-  //       final name = Functions.escapeJS(client['name'].toString());
-  //       final contact_email = Functions.escapeJS(
-  //         client['contact_email'].toString(),
-  //       );
-  //       final contact_mobile = Functions.escapeJS(
-  //         client['contact_phone'].toString(),
-  //       );
-  //       contactPersonOptionsHTML +=
-  //           '<option value="$id" data-contact_email="$contact_email" data-contact_mobile="$contact_mobile">$name</option>';
-  //     }
-
-  //     // Now inject both category and contact person options into the web view
-  //     print("Categories HTML: $categoryOptionsHTML");
-  //     print("Contact Person Options HTML: $contactPersonOptionsHTML");
-
-  //     await injectWebJS(
-  //       categoryOptions: categoryOptionsHTML,
-  //       contactPersonOptions: contactPersonOptionsHTML,
-  //     );
-  //   } catch (e) {
-  //     developer.log(
-  //       "Error fetchCurrentUsersClientsAndInjectJS(): $e",
-  //       name: "TaskScreen",
-  //     );
-  //   }
-  // }
-
   // Inject JavaScript into the web view
-  Future<void> injectWebJS({
-    String contactPersonOptions = '',
-    String categoryOptions = '',
-  }) async {
-    final jsCode = baseJS(contactPersonOptions, categoryOptions);
+  Future<void> injectWebJS() async {
+    developer.log("injectwebjs");
+    final jsCode = baseJS();
     await _controller?.evaluateJavascript(source: jsCode);
   }
 
@@ -695,26 +661,35 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   void _handlePopupFormSubmit(Map<String, dynamic> data) async {
-    try {
-      print("Received client data from popup:");
-      print(data);
+    print("Received client data from popup:");
+    print(data);
 
-      // Basic validation (optional)
-      if (data['name'] == null ||
-          data['category_id'] == null ||
-          !(data['locations'] is List)) {
-        print("Invalid data format.");
-        return;
-      }
-
-      // Call controller to add client
-      await ClientsController.addClient(data);
-
+    // Basic validation (optional)
+    if (data['name'] == null ||
+        data['category_id'] == null ||
+        !(data['locations'] is List)) {
+      print("Invalid data format.");
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Client added successfully!")));
-    } catch (e) {
-      print("Error handling popup form submission: $e");
+      ).showSnackBar(SnackBar(content: Text("Invalid client data")));
+      return;
+    }
+
+    // Call controller to add client
+    final response = await ClientsController.addClient(data);
+
+    // makes sure the widget is mounted or in the context
+    if (!mounted) return;
+    if (response['status']) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Client added successfully! ${response['message']}"),
+        ),
+      );
+    } else {
+      print(
+        "Error handling popup client form submission: ${response['message']}",
+      );
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Failed to submit client")));
@@ -735,6 +710,10 @@ class _TaskScreenState extends State<TaskScreen> {
         final name = Functions.escapeJS(cat['name'].toString());
         categoryOptionsHTML += '<option value="$id">$name</option>';
       }
+      developer.log(
+        "categoryOptionsHTML $categoryOptionsHTML",
+        name: "TaskScreen",
+      );
 
       // Fetch states from sharedPreferences
       final statesData = await DataStorage.getStateNames() as List<dynamic>;
@@ -746,6 +725,7 @@ class _TaskScreenState extends State<TaskScreen> {
         stateOptionsHTML +=
             '<option value="${(i + 1).toString()}">$name</option>';
       }
+      developer.log("stateOptionsHTML $stateOptionsHTML", name: "TaskScreen");
     } catch (e) {
       developer.log("Error _fetchStoredStaticData(): $e", name: "TaskScreen");
     }
@@ -779,6 +759,8 @@ class _TaskScreenState extends State<TaskScreen> {
       categoryId: categoryId!,
     );
 
+    // makes sure the widget is mounted or in the context
+    if (!mounted) return;
     if (response['status'] == true) {
       ScaffoldMessenger.of(
         context,
@@ -798,18 +780,61 @@ class _TaskScreenState extends State<TaskScreen> {
     final response = await CompanyController.getOnlyCompanies(userId);
 
     if (response['status'] == true) {
-      
-      developer.log("_fetchCompaniesData successfully ${response['data']}", name: "TaskScreen");
-    } 
+      developer.log(
+        "_fetchCompaniesData successfully ${response['data']}",
+        name: "TaskScreen",
+      );
+    } else {
+      developer.log(
+        "_fetchCompaniesData un-successfully ${response['data']}",
+        name: "TaskScreen",
+      );
+    }
   }
 
+  // Get userData from SharedPreferences, to finally get the userId
   Future<void> _initializeTaskScreen() async {
-    // Get userData from SharedPreferences, to finally get the userId
     final userData = await DataStorage.getUserData();
     if (userData != null) {
       final decoded = jsonDecode(userData);
       userId = int.tryParse(decoded['id'].toString()) ?? 0;
     }
     developer.log("Extracted userId: $userId", name: "DashboardScreen");
+  }
+
+  Future<void> _fetchCurrentUsersClients(int companyId) async {
+    final response = await ClientsController.getUserClientsData(
+      companyId,
+      userId,
+    );
+
+    // String contactPersonOptionsHTML =
+    //     '<option selected>Contact Person</option>';
+    // for (var client in clients) {
+    //   final id = Functions.escapeJS(client['id'].toString());
+    //   final name = Functions.escapeJS(client['name'].toString());
+    //   final contact_email = Functions.escapeJS(
+    //     client['contact_email'].toString(),
+    //   );
+
+    // makes sure the widget is mounted or in the context
+    if (!mounted) return;
+    if (response['status'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Failed to get Clients: ${response['message'] ?? 'Unknown error'}",
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Failed to get Clients: ${response['message'] ?? 'Unknown error'}",
+          ),
+        ),
+      );
+    }
   }
 }

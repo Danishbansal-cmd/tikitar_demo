@@ -39,7 +39,7 @@ class CompanyController {
         return {
           "status": false,
           "message": response['message'] ?? "Invalid response",
-          "data": [],
+          "data": null,
         };
       }
     } catch (e) {

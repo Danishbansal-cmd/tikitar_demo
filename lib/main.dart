@@ -170,7 +170,6 @@ class _MyAppState extends State<MyApp>{
         '/meetingList': (context) => MeetingListScreen(),
         '/companyList': (context) => CompanyListScreen(),
         '/addTask': (context) => TaskScreen(),
-        // Add other screens here like '/profile': (context) => ProfileScreen(),
       },
     );
   }

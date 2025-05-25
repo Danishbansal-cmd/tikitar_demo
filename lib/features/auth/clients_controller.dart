@@ -1,48 +1,49 @@
-import 'dart:convert';
-import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'package:tikitar_demo/core/network/api_base.dart';
 
 class ClientsController {
-  /// Fetches client data and stores the entire list in local storage.
-  static Future<void> fetchAndStoreClientsData() async {
-    void printLongString(String text, {int chunkSize = 800}) {
-      final pattern = RegExp('.{1,$chunkSize}', dotAll: true);
-      pattern.allMatches(text).forEach((match) => print(match.group(0)));
-    }
-
+  /// Adds a new client by sending the data to the /clients endpoint
+  static Future<Map<String, dynamic>> addClient(Map<String, dynamic> clientData) async {
     try {
-      final response = await ApiBase.get('/user/clients');
-      final data = response['data'];
-      print("Client from controller: $data");
+      final response = await ApiBase.post('/clients', clientData);
 
-      if (data != null && data is List && data.isNotEmpty) {
-        final jsonToStore = jsonEncode(data);
-        printLongString("All client data stored: $jsonToStore");
-      }
+      return {"status": response['status'] || true, "message": response['message']};
     } catch (e) {
-      print("Error fetching/storing client data: $e");
+      return {"status": false, "message": "Error: $e"};
     }
   }
 
-  /// Adds a new client by sending the data to the /clients endpoint
-  static Future<void> addClient(Map<String, dynamic> clientData) async {
+  static Future<Map<String, dynamic>> getUserClientsData(
+    int companyId,
+    int userId,
+  ) async {
     try {
-      final response = await ApiBase.post(
-        '/clients',
-        clientData,
+      final response = await ApiBase.get(
+        '/clients/getcontactperson/$companyId/$userId',
       );
-      final data = response['data'];
 
-      if (data != null && data is Map && data.isNotEmpty) {
-        print("Client added successfully.");
-        // Optionally refresh local cache
-        await fetchAndStoreClientsData();
+      if (response != null &&
+          response['status'] == true &&
+          response['data'] != null) {
+        return {
+          "status": true,
+          "message":
+              response['message'] ??
+              "User's Specific Companies' Clients fetched successfully",
+          "data": response['data'], // could be a List or Map depending on API
+        };
       } else {
-        print("Failed to submit client: ${response['message']}");
+        return {
+          "status": false,
+          "message": response['message'] ?? "Invalid response",
+          "data": null,
+        };
       }
-
     } catch (e) {
-      print("Error adding client: $e");
+      return {
+        "status": false,
+        "message": "Error occured in getUserClientsData(): $e",
+        "data": null,
+      };
     }
   }
 }

@@ -6,7 +6,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'package:tikitar_demo/features/auth/categories_controller.dart';
-import 'package:tikitar_demo/features/auth/clients_controller.dart';
 import 'package:tikitar_demo/features/auth/user_controller.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
@@ -45,8 +44,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // basically a function to handle the multiple await functions
   Future<void> handleDashboardLoad(InAppWebViewController controller) async {
-    await ClientsController.fetchAndStoreClientsData();
-
     // as the name suggest, fetch and insert the Users Data which are reporting to this user
     await fetchAndInjectUsers(
       controller: controller,
@@ -177,6 +174,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  // fetch all the available categories and store in shared preferences
   Future<void> _fetchCategoriesAndStore() async {
     try {
       // Fetch categories first
@@ -192,6 +190,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  // fetch all states and save in storage of shared preferences
   Future<void> _fetchAllStates() async {
     const String url =
         'https://api.data.gov.in/resource/a71e60f0-a21d-43de-a6c5-fa5d21600cdb';
