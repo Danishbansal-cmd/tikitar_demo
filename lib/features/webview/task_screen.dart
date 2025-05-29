@@ -26,15 +26,13 @@ class _TaskScreenState extends State<TaskScreen> {
   String categoryOptionsHTML = ''; // store the categoryOptions
   String stateOptionsHTML = ''; // store the stateOptions
   String companyOptionsHTML = ''; // store the companyOptions
-  String contactPersonOptionsHTML =
-      '<option selected>No Contact Person</option>';
   int? userId;
 
   @override
   void initState() {
     super.initState();
     _fetchStoredStaticData(); // fetch all the static data
-    _initializeTaskScreen();
+    _initializeTaskScreen(); // to initialize the userId variable
   }
 
   @override
@@ -179,17 +177,12 @@ class _TaskScreenState extends State<TaskScreen> {
       });
     });
 
-    // ❌❌ fixing this
-    // ❌❌ still pending, needs to fix
     // ✅ Contact Person Select Field
     // Contact Person select field injection
     function updatesContactPersonOptions(htmlString) {
-      const optionsHTML = htmlString && htmlString.trim() !== ''
-        ? htmlString
-        : contactPersonOptionsHTML;
+      const optionsHTML = htmlString;
 
-      const contactPersonSelects = document.querySelectorAll('select.form-select[placeholder="Contact Person Name"]');
-
+      const contactPersonSelects = document.querySelectorAll('select.form-select[placeholder="Contact Person"]');
       contactPersonSelects.forEach(select => {
         select.innerHTML = optionsHTML;
 
@@ -200,28 +193,18 @@ class _TaskScreenState extends State<TaskScreen> {
           const contactEmailAttr = selectedOption.getAttribute('data-contact_email') || '';
           const contactMobileAttr = selectedOption.getAttribute('data-contact_mobile') || '';
 
-          if (typeof contactEmail !== 'undefined' && contactEmail) {
-            contactEmail.value = contactEmailAttr;
-          }
-
-          if (typeof contactMobile !== 'undefined' && contactMobile) {
-            contactMobile.value = contactMobileAttr;
-          }
+          contactMobile && (contactMobile.value = contactEmailAttr || '');
+          contactEmail && (contactEmail.value = contactMobileAttr || '');
         });
       });
+
+      // update these ♿two disabled fields to empty or default values as the Contact Person Data updates
+      // means if the data of the contact person select is updated, then it means at such time no contact person
+      // is selected, so make those values to default or back to normal
+      contactMobile && (contactMobile.value = '');
+      contactEmail && (contactEmail.value = '');
     }
-    updatesContactPersonOptions('');
-
-    // contactPersonSelects.forEach(select => {
-    //   select.innerHTML = `$contactPersonOptionsHTML`;
-
-    //   select.addEventListener('change', function (){
-    //     const selectedOption = this.options[this.selectedIndex];
-
-    //     contactMobile &&  (contactMobile.value = selectedOption.getAttribute('data-contact_mobile') || '');
-    //     contactEmail && (contactEmail.value = selectedOption.getAttribute('data-contact_email') || '');
-    //   });
-    // });
+    updatesContactPersonOptions('<option selected>No Contact Person</option>');
 
     // ✅ Add Company button
     document.querySelectorAll('.addmore')[0]?.addEventListener('click', function(e) {
@@ -887,21 +870,18 @@ class _TaskScreenState extends State<TaskScreen> {
 
     final bool status = response['status'] == true;
     final message = response['message'] ?? 'Unknown error';
-    developer.log("_fetchCurrentUsersContactPerson $message");
+
+    String contactPersonOptionsHTML =
+        '<option selected>No Contact Person</option>';
 
     // makes sure the widget is mounted or in the context
     if (!mounted) return;
 
     if (status) {
-      developer.log(
-        "in true _fetchCurrentUsersContactPerson",
-        name: "TaskScreen",
-      );
-
       final usersContactPersonsData = response['data'] as List;
 
       if (usersContactPersonsData.isNotEmpty) {
-        String generatedHTML =
+        contactPersonOptionsHTML =
             '<option selected>Select Contact Person</option>';
 
         developer.log(
@@ -920,20 +900,15 @@ class _TaskScreenState extends State<TaskScreen> {
             person['contact_phone'].toString(),
           );
 
-          generatedHTML +=
+          contactPersonOptionsHTML +=
               '<option value="$id" data-contact_email="$contactEmail" data-contact_mobile="$contactMobile">$name</option>';
         }
 
         await _controller?.evaluateJavascript(
           source: """
             // updates the contact person options
-            updatesContactPersonOptions(`$generatedHTML`);
+            updatesContactPersonOptions(`${Functions.escapeJS(contactPersonOptionsHTML)}`);
           """,
-        );
-
-        developer.log(
-          "contactPersonOptionsHTML $contactPersonOptionsHTML",
-          name: "TaskScreen",
         );
       }
       ScaffoldMessenger.of(
@@ -941,7 +916,12 @@ class _TaskScreenState extends State<TaskScreen> {
       ).showSnackBar(SnackBar(content: Text(message)));
     } else {
       developer.log("in false _fetchCurrentUsersContactPerson");
-      contactPersonOptionsHTML = '<option selected>No Contact Person</option>';
+      await _controller?.evaluateJavascript(
+        source: """
+          // updates the contact person options
+          updatesContactPersonOptions(`${Functions.escapeJS(contactPersonOptionsHTML)}`);
+        """,
+      );
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
