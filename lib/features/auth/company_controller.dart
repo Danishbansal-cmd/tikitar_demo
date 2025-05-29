@@ -7,14 +7,18 @@ class CompanyController {
     required String zip,
     required String state,
     required int categoryId,
+    required String address,
+    required String branch,
   }) async {
     try {
-      final response = await ApiBase.post("/clients/storeclients", {
+      final response = await ApiBase.post("/clients/saveCompany", {
         "name": name,
         "category_id": categoryId,
         "city": city,
         "state": state,
         "zip": zip,
+        "address_line1": address,
+        "branch_name": branch,
       });
       return {"status": response['status'] || true, "message": response['message']};
     } catch (e) {

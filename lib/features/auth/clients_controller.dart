@@ -12,13 +12,13 @@ class ClientsController {
     }
   }
 
-  static Future<Map<String, dynamic>> getUserClientsData(
-    int companyId,
+  static Future<Map<String, dynamic>> getUserContactPersonsData(
+    int clientId,
     int userId,
   ) async {
     try {
       final response = await ApiBase.get(
-        '/clients/getcontactperson/$companyId/$userId',
+        '/clients/getcontactperson/$clientId/$userId',
       );
 
       if (response != null &&

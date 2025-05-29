@@ -26,16 +26,15 @@ class _TaskScreenState extends State<TaskScreen> {
   String categoryOptionsHTML = ''; // store the categoryOptions
   String stateOptionsHTML = ''; // store the stateOptions
   String companyOptionsHTML = ''; // store the companyOptions
-  String contactPersonOptionsHTML = '';
-  int userId = 0;
+  String contactPersonOptionsHTML =
+      '<option selected>No Contact Person</option>';
+  int? userId;
 
   @override
   void initState() {
     super.initState();
     _fetchStoredStaticData(); // fetch all the static data
     _initializeTaskScreen();
-    _fetchCompaniesData();
-    // _fetchCurrentUsersClients();
   }
 
   @override
@@ -81,11 +80,21 @@ class _TaskScreenState extends State<TaskScreen> {
               zip: args[2],
               state: args[3],
               categoryId: args[4],
+              address: args[5],
+              branch: args[6],
             );
+          },
+        );
+
+        _controller?.addJavaScriptHandler(
+          handlerName: 'companySelected',
+          callback: (args) {
+            _companySelected(selectedCompanyOptionValue: int.tryParse(args[0]));
           },
         );
       },
       onLoadStop: (controller, url) async {
+        await _fetchCompaniesData();
         await injectWebJS();
       },
       onConsoleMessage: (consoleMessage) {
@@ -152,23 +161,58 @@ class _TaskScreenState extends State<TaskScreen> {
       contactEmail.disabled = true;
     }
 
-    // ❌❌❌ main error is occuring here,
-    // ❌❌❌ fix once apis are corrected
-    // // Company select field data injection
-    // const selects = document.querySelectorAll('select.form-select[placeholder="Company Name"]');
-    // selects.forEach(select => {
-    //   select.innerHTML = `$companyOptionsHTML`;
+    // ✅Company Select Field 
+    // get all the selects that match this querySelector
+    const selects = document.querySelectorAll('select.form-select[placeholder="Company Name"]');
+    let selectedCompanyValue = null;
+    // Company select field data injection
+    selects.forEach(select => {
+      select.innerHTML = `$companyOptionsHTML`;
 
-    //   select.addEventListener('change', function (){
-    //     const selectedOption = this.options[this.selectedIndex];
-    //   });
-    // });
+      select.addEventListener('change', function (){
+        const selectedOption = this.options[this.selectedIndex];
+        selectedCompanyValue = selectedOption.value;
 
-    // ❌❌❌ main error is occuring here
-    // ❌❌❌ fix once apis are corrected
-    // // Contact Person select field injection
-    // const selects = document.querySelectorAll('select.form-select[placeholder="Contact Person"]');
-    // selects.forEach(select => {
+        console.log(this.selectedIndex);
+        console.log(selectedCompanyValue);
+        window.flutter_inappwebview.callHandler('companySelected', selectedCompanyValue);
+      });
+    });
+
+    // ❌❌ fixing this
+    // ❌❌ still pending, needs to fix
+    // ✅ Contact Person Select Field
+    // Contact Person select field injection
+    function updatesContactPersonOptions(htmlString) {
+      const optionsHTML = htmlString && htmlString.trim() !== ''
+        ? htmlString
+        : contactPersonOptionsHTML;
+
+      const contactPersonSelects = document.querySelectorAll('select.form-select[placeholder="Contact Person Name"]');
+
+      contactPersonSelects.forEach(select => {
+        select.innerHTML = optionsHTML;
+
+        select.addEventListener('change', function () {
+          const selectedOption = this.options[this.selectedIndex];
+          if (!selectedOption) return;
+
+          const contactEmailAttr = selectedOption.getAttribute('data-contact_email') || '';
+          const contactMobileAttr = selectedOption.getAttribute('data-contact_mobile') || '';
+
+          if (typeof contactEmail !== 'undefined' && contactEmail) {
+            contactEmail.value = contactEmailAttr;
+          }
+
+          if (typeof contactMobile !== 'undefined' && contactMobile) {
+            contactMobile.value = contactMobileAttr;
+          }
+        });
+      });
+    }
+    updatesContactPersonOptions('');
+
+    // contactPersonSelects.forEach(select => {
     //   select.innerHTML = `$contactPersonOptionsHTML`;
 
     //   select.addEventListener('change', function (){
@@ -193,6 +237,8 @@ class _TaskScreenState extends State<TaskScreen> {
         <select id="popup-category" class="form-select mb-1">
           $categoryOptionsHTML
         </select><br/>
+        <input type="text" placeholder="Address Line 1" class="form-control mb-1 address-line-1"/>
+        <input type="text" placeholder="Branch Name" class="form-control mb-1 branch-name"/>
         <button id="popup-close" class="btn btn-danger me-2">Close</button>
         <button id="submit-company" class="btn btn-primary">Save</button>
       \`;
@@ -212,11 +258,10 @@ class _TaskScreenState extends State<TaskScreen> {
         const statesDropdownValue = statesDropdown.value;
         const selectedStateText = statesDropdown.options[statesDropdownValue].text;
         const category = parseInt(document.querySelector("#popup-category").value || "0");
+        const address = document.querySelector(".address-line-1").value;
+        const branch = document.querySelector(".branch-name").value;
 
-        console.log("name: ", name, city, zip, category);
-        console.log("selectedStateText: ", selectedStateText, statesDropdownValue);
-
-        window.flutter_inappwebview.callHandler('saveOnlyCompanyData', name, city, zip, selectedStateText, category);
+        window.flutter_inappwebview.callHandler('saveOnlyCompanyData', name, city, zip, selectedStateText, category, address, branch);
       });
     });
 
@@ -719,7 +764,7 @@ class _TaskScreenState extends State<TaskScreen> {
       final statesData = await DataStorage.getStateNames() as List<dynamic>;
       if (statesData.isEmpty) return;
 
-      stateOptionsHTML = '<option selected>Select Select</option>';
+      stateOptionsHTML = '<option selected>Select State</option>';
       for (int i = 0; i < statesData.length; i++) {
         final name = Functions.escapeJS(statesData[i].toString());
         stateOptionsHTML +=
@@ -737,6 +782,8 @@ class _TaskScreenState extends State<TaskScreen> {
     String? zip,
     String? state,
     int? categoryId,
+    String? address,
+    String? branch,
   }) async {
     if ([
       name,
@@ -757,6 +804,8 @@ class _TaskScreenState extends State<TaskScreen> {
       zip: zip!,
       state: state!,
       categoryId: categoryId!,
+      address: address!,
+      branch: branch!,
     );
 
     // makes sure the widget is mounted or in the context
@@ -765,6 +814,12 @@ class _TaskScreenState extends State<TaskScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Company saved successfully.")));
+      await _controller?.evaluateJavascript(
+        source: """
+          // remove the popup or (Company Add) Dialog
+          document.getElementById('flutter-popup')?.remove();
+        """,
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -776,12 +831,27 @@ class _TaskScreenState extends State<TaskScreen> {
     }
   }
 
-  void _fetchCompaniesData() async {
-    final response = await CompanyController.getOnlyCompanies(userId);
+  Future<void> _fetchCompaniesData() async {
+    developer.log(
+      "_fetchCompaniesData send data ${userId}",
+      name: "TaskScreen",
+    );
+    final response = await CompanyController.getOnlyCompanies(userId!);
 
     if (response['status'] == true) {
       developer.log(
         "_fetchCompaniesData successfully ${response['data']}",
+        name: "TaskScreen",
+      );
+      final companiesData = response['data'];
+      companyOptionsHTML = '<option selected>Select Company</option>';
+      for (int i = 0; i < companiesData.length; i++) {
+        final name = Functions.escapeJS(companiesData[i]['name'].toString());
+        final id = companiesData[i]['id'];
+        companyOptionsHTML += '<option value="$id">$name</option>';
+      }
+      developer.log(
+        "companyOptionsHTML $companyOptionsHTML",
         name: "TaskScreen",
       );
     } else {
@@ -797,44 +867,96 @@ class _TaskScreenState extends State<TaskScreen> {
     final userData = await DataStorage.getUserData();
     if (userData != null) {
       final decoded = jsonDecode(userData);
+      // converting to int successfully
       userId = int.tryParse(decoded['id'].toString()) ?? 0;
     }
-    developer.log("Extracted userId: $userId", name: "DashboardScreen");
+    developer.log("Extracted userId: $userId", name: "TaskScreen");
   }
 
-  Future<void> _fetchCurrentUsersClients(int companyId) async {
-    final response = await ClientsController.getUserClientsData(
+  Future<void> _fetchCurrentUsersContactPerson(int companyId) async {
+    // In actuall companyId is the clientId, we are sending the companyId
+    // but in api it is considered as clientId
+    final response = await ClientsController.getUserContactPersonsData(
       companyId,
-      userId,
+      userId!,
+    );
+    developer.log(
+      "_fetchCurrentUsersContactPerson response ${response['data']}",
+      name: "TaskScreen",
     );
 
-    // String contactPersonOptionsHTML =
-    //     '<option selected>Contact Person</option>';
-    // for (var client in clients) {
-    //   final id = Functions.escapeJS(client['id'].toString());
-    //   final name = Functions.escapeJS(client['name'].toString());
-    //   final contact_email = Functions.escapeJS(
-    //     client['contact_email'].toString(),
-    //   );
+    final bool status = response['status'] == true;
+    final message = response['message'] ?? 'Unknown error';
+    developer.log("_fetchCurrentUsersContactPerson $message");
 
     // makes sure the widget is mounted or in the context
     if (!mounted) return;
-    if (response['status'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Failed to get Clients: ${response['message'] ?? 'Unknown error'}",
-          ),
-        ),
+
+    if (status) {
+      developer.log(
+        "in true _fetchCurrentUsersContactPerson",
+        name: "TaskScreen",
       );
+
+      final usersContactPersonsData = response['data'] as List;
+
+      if (usersContactPersonsData.isNotEmpty) {
+        String generatedHTML =
+            '<option selected>Select Contact Person</option>';
+
+        developer.log(
+          "in true but list not empty _fetchCurrentUsersContactPerson",
+          name: "TaskScreen",
+        );
+
+        for (int i = 0; i < usersContactPersonsData.length; i++) {
+          final person = usersContactPersonsData[i];
+          final id = person['id'];
+          final name = Functions.escapeJS(person['contact_person'].toString());
+          final contactEmail = Functions.escapeJS(
+            person['contact_email'].toString(),
+          );
+          final contactMobile = Functions.escapeJS(
+            person['contact_phone'].toString(),
+          );
+
+          generatedHTML +=
+              '<option value="$id" data-contact_email="$contactEmail" data-contact_mobile="$contactMobile">$name</option>';
+        }
+
+        await _controller?.evaluateJavascript(
+          source: """
+            // updates the contact person options
+            updatesContactPersonOptions(`$generatedHTML`);
+          """,
+        );
+
+        developer.log(
+          "contactPersonOptionsHTML $contactPersonOptionsHTML",
+          name: "TaskScreen",
+        );
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Failed to get Clients: ${response['message'] ?? 'Unknown error'}",
-          ),
-        ),
-      );
+      developer.log("in false _fetchCurrentUsersContactPerson");
+      contactPersonOptionsHTML = '<option selected>No Contact Person</option>';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  // run this function on selecting the company
+  Future<void> _companySelected({int? selectedCompanyOptionValue}) async {
+    developer.log(
+      "selected Company Value $selectedCompanyOptionValue",
+      name: "TaskScreen",
+    );
+
+    if (selectedCompanyOptionValue != null) {
+      await _fetchCurrentUsersContactPerson(selectedCompanyOptionValue);
     }
   }
 }
