@@ -84,10 +84,19 @@ class _TaskScreenState extends State<TaskScreen> {
           },
         );
 
+        // it is called when the specific company is selected
         _controller?.addJavaScriptHandler(
           handlerName: 'companySelected',
           callback: (args) {
             _companySelected(selectedCompanyOptionValue: int.tryParse(args[0]));
+          },
+        );
+
+        // called on click of the "save" button of (Add Contact Person Dialog or Form)
+        _controller?.addJavaScriptHandler(
+          handlerName: 'addContactPersonDetails',
+          callback: (args) {
+            _addContactPersonDetails(contactPersonData: args[0]);
           },
         );
       },
@@ -99,11 +108,7 @@ class _TaskScreenState extends State<TaskScreen> {
         if (consoleMessage.messageLevel == ConsoleMessageLevel.LOG) {
           final message = consoleMessage.message;
 
-          if (message.startsWith("SUBMIT_CLIENT_DATA::")) {
-            final jsonData = message.replaceFirst("SUBMIT_CLIENT_DATA::", "");
-            final data = json.decode(jsonData);
-            _handlePopupFormSubmit(data); // Handle popup form submission
-          } else if (message.startsWith("MAIN_SUBMIT::")) {
+          if (message.startsWith("MAIN_SUBMIT::")) {
             final jsonData = message.replaceFirst("MAIN_SUBMIT::", "");
             final data = json.decode(jsonData);
             _submitMeetingData(data); // Handle main form submit
@@ -249,106 +254,77 @@ class _TaskScreenState extends State<TaskScreen> {
     });
 
     // ✅ New Person Form Full Popup Button
+    const addContactPersonFieldsClasses = ['contact_person', 'contact_email', 'contact_phone', 'job_title', 'whatsapp'];
     document.querySelectorAll('.addmore')[1]?.addEventListener('click', function(e) {
       e.preventDefault();
       const html = \`
         <h5>Add New Client</h5>
-        <input type="text" placeholder="Name" id="popup-name" class="form-control mb-1"/>
-        <select id="popup-category" class="form-select">
-          $categoryOptionsHTML
-        </select><br/>
-        <div id="location-list">
-          <h6>Locations</h6>
-          <div class="location-item mb-3">
-            <input type="text" placeholder="Branch Name" class="form-control mb-1 loc-branch-name"/>
-            <input type="text" placeholder="Address Line 1" class="form-control mb-1 loc-address1"/>
-            <input type="text" placeholder="Address Line 2" class="form-control mb-1 loc-address2"/>
-            <input type="text" placeholder="City" class="form-control mb-1 loc-city"/>
-            <input type="text" placeholder="State" class="form-control mb-1 loc-state"/>
-            <input type="text" placeholder="Country" class="form-control mb-1 loc-country"/>
-            <input type="text" placeholder="Contact Person" class="form-control mb-1 loc-contact-person"/>
-            <input type="email" placeholder="Contact Email" class="form-control mb-1 loc-contact-email"/>
-            <input type="text" placeholder="Contact Phone (10 digits)" class="form-control mb-1 loc-contact-phone"/>
-          </div>
-        </div>
-        <button id="add-location" class="btn btn-secondary btn-sm mb-3">Add Another Location</button><br/>
+        <input type="text" placeholder="Contact Person" class="form-control mb-1 contact_person"/>
+        <input type="text" placeholder="Contact Email" class="form-control mb-1 contact_email"/>
+        <input type="text" placeholder="Contact Phone" class="form-control mb-1 contact_phone"/>
+        <input type="text" placeholder="Job Title" class="form-control mb-1 job_title"/>
+        <input type="text" placeholder="Whatsapp" class="form-control mb-1 whatsapp"/>
+        
         <button id="popup-close" class="btn btn-danger me-2">Close</button>
         <button id="submit-client" class="btn btn-primary">Save</button>
       \`;
       createPopup(html);
 
+      // close button logic
       document.getElementById('popup-close')?.addEventListener('click', () => {
         document.getElementById('flutter-popup')?.remove();
       });
 
-      document.getElementById('add-location')?.addEventListener('click', () => {
-        const locDiv = document.createElement('div');
-        locDiv.className = "location-item mb-3";
-        locDiv.innerHTML = \`
-          <hr/>
-          <input type="text" placeholder="Branch Name" class="form-control mb-1 loc-branch-name"/>
-          <input type="text" placeholder="Address Line 1" class="form-control mb-1 loc-address1"/>
-          <input type="text" placeholder="Address Line 2" class="form-control mb-1 loc-address2"/>
-          <input type="text" placeholder="City" class="form-control mb-1 loc-city"/>
-          <input type="text" placeholder="State" class="form-control mb-1 loc-state"/>
-          <input type="text" placeholder="Country" class="form-control mb-1 loc-country"/>
-          <input type="text" placeholder="Contact Person" class="form-control mb-1 loc-contact-person"/>
-          <input type="email" placeholder="Contact Email" class="form-control mb-1 loc-contact-email"/>
-          <input type="text" placeholder="Contact Phone (10 digits)" class="form-control mb-1 loc-contact-phone"/>
-        \`;
-        document.getElementById('location-list')?.appendChild(locDiv);
-      });
-
+      // phone input validation
       const observePhoneInputs = () => {
-        document.querySelectorAll('.loc-contact-phone').forEach(input => {
+        document.querySelectorAll('.contact_phone').forEach(input => {
           input.removeEventListener('input', phoneInputHandler);
           input.addEventListener('input', phoneInputHandler);
         });
       };
-
       const phoneInputHandler = function () {
         this.value = this.value.replace(/[^0-9]/g, '').substring(0, 10);
       };
-
       observePhoneInputs();
-      const observer = new MutationObserver(observePhoneInputs);
-      observer.observe(document.getElementById('location-list'), { childList: true, subtree: true });
 
       document.getElementById('submit-client')?.addEventListener('click', () => {
-        const name = document.getElementById('popup-name')?.value || "";
-        const category = parseInt(document.getElementById('popup-category')?.value || "0");
+        let isAllFilled = true;
+        const formData = {};
 
-        const locationNodes = document.querySelectorAll('.location-item');
-        const locations = [];
-
-        locationNodes.forEach((loc) => {
-          const getVal = (selector) => loc.querySelector(selector)?.value || "";
-          const locationData = {
-            branch_name: getVal('.loc-branch-name'),
-            address_line1: getVal('.loc-address1'),
-            address_line2: getVal('.loc-address2'),
-            city: getVal('.loc-city'),
-            state: getVal('.loc-state'),
-            country: getVal('.loc-country'),
-            contact_person: getVal('.loc-contact-person'),
-            contact_email: getVal('.loc-contact-email'),
-            contact_phone: getVal('.loc-contact-phone'),
-          };
-
-          if (locationData.contact_person && locationData.contact_email && locationData.contact_phone) {
-            locations.push(locationData);
-          }
+        addContactPersonFieldsClasses.forEach(function(className) {
+          const input = document.querySelector('.' + className);
+            if (!input || input.value.trim() === '') {
+              isAllFilled = false;
+            } else {
+              formData[className] = input.value.trim();
+            }
         });
 
+        if (!isAllFilled) {
+          console.log('Please fill all fields.');
+        }
+
+        const companySelect = document.querySelector('select.form-select[placeholder="Company Name"]');
+        let client_id_data = companySelect?.value || null;
+
+        // if no company is selected then, it shows this option "Select Company"
+        // then send the null
+        if (client_id_data === "Select Company") {
+          client_id_data = null;
+        }
+
+        // Example payload - adapt as needed
         const finalPayload = {
-          name: name,
-          category_id: category,
-          locations: locations
+          client_id: client_id_data,
+          name: formData['contact_person'],
+          contact_email: formData['contact_email'],
+          contact_phone: formData['contact_phone'],
+          job_title: formData['job_title'],
+          whatsapp: formData['whatsapp'],
         };
 
-        // ❌❌❌ fix once apis are corrected
-        console.log("SUBMIT_CLIENT_DATA::" + JSON.stringify(finalPayload));
-        document.getElementById('flutter-popup')?.remove();
+        // call the method to handle the adding of Contact Person
+        window.flutter_inappwebview.callHandler('addContactPersonDetails', finalPayload);
       });
     });
 
@@ -688,42 +664,6 @@ class _TaskScreenState extends State<TaskScreen> {
     }
   }
 
-  void _handlePopupFormSubmit(Map<String, dynamic> data) async {
-    print("Received client data from popup:");
-    print(data);
-
-    // Basic validation (optional)
-    if (data['name'] == null ||
-        data['category_id'] == null ||
-        !(data['locations'] is List)) {
-      print("Invalid data format.");
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Invalid client data")));
-      return;
-    }
-
-    // Call controller to add client
-    final response = await ClientsController.addClient(data);
-
-    // makes sure the widget is mounted or in the context
-    if (!mounted) return;
-    if (response['status']) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Client added successfully! ${response['message']}"),
-        ),
-      );
-    } else {
-      print(
-        "Error handling popup client form submission: ${response['message']}",
-      );
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Failed to submit client")));
-    }
-  }
-
   Future<void> _fetchStoredStaticData() async {
     try {
       // Fetch categories first from sharedPreferences
@@ -937,6 +877,60 @@ class _TaskScreenState extends State<TaskScreen> {
 
     if (selectedCompanyOptionValue != null) {
       await _fetchCurrentUsersContactPerson(selectedCompanyOptionValue);
+    }
+  }
+
+  Future<void> _addContactPersonDetails({
+    required Map<String, dynamic> contactPersonData,
+  }) async {
+    // Ensure the client ID is available (you can pass it or store it somewhere)
+    final clientId = contactPersonData['client_id'] ?? 0; // Replace with your actual logic to fetch client_id
+
+    if (clientId == 0) {
+      developer.log("Client ID is not set", name: "TaskScreen");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please Select the Company from Above.")),
+      );
+      return;
+    }
+
+    // Construct the API payload
+    final payload = {
+      "client_id": clientId.toString(), // API expects string
+      "contact_person": contactPersonData['name'] ?? '',
+      "contact_email": contactPersonData['contact_email'] ?? '',
+      "contact_phone": contactPersonData['contact_phone'] ?? '',
+      "job_title": contactPersonData['job_title'] ?? '',
+      "whatsapp": contactPersonData['whatsapp'] ?? '',
+    };
+
+    developer.log("Sending contact person data: $payload", name: "TaskScreen");
+
+    final response = await ClientsController.addContactPerson(payload);
+    developer.log("Add Contact Person Response: $response", name: "TaskScreen");
+
+    final bool status = response['status'] == true;
+    final message = response['message'] ?? 'Unknown error';
+
+    // makes sure the widget is mounted or in the context
+    if (!mounted) return;
+
+    if (status) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Contact person added successfully.")),
+      );
+      // Optionally refresh the contact person list
+      await _fetchCurrentUsersContactPerson(int.tryParse(clientId) ?? 0);
+      await _controller?.evaluateJavascript(
+        source: """
+          // close the popup after successfully adding the contact person
+          document.getElementById('flutter-popup')?.remove();
+        """
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     }
   }
 }

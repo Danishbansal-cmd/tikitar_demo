@@ -1,14 +1,14 @@
 import 'package:tikitar_demo/core/network/api_base.dart';
 
 class ClientsController {
-  /// Adds a new client by sending the data to the /clients endpoint
-  static Future<Map<String, dynamic>> addClient(Map<String, dynamic> clientData) async {
+  /// Adds a new Contact Person for the specific user and specific company
+  static Future<Map<String, dynamic>> addContactPerson(Map<String, dynamic> contactPersonData) async {
     try {
-      final response = await ApiBase.post('/clients', clientData);
+      final response = await ApiBase.post('/clients/contactpersonsave', contactPersonData);
 
       return {"status": response['status'] || true, "message": response['message']};
     } catch (e) {
-      return {"status": false, "message": "Error: $e"};
+      return {"status": false, "message": "$e"};
     }
   }
 
