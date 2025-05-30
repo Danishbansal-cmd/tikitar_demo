@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(height: MediaQuery.of(context).size.height * 0.15), // Add top spacing
                 // Logo
                 Container(
-                  padding: const EdgeInsets.all(80),
+                  padding: const EdgeInsets.all(50),
                   child: Image.asset(
                     'assets/images/ic_launcher.png',
                     height: 200,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tikitar_demo/features/auth/login_screen.dart';
 import 'package:tikitar_demo/features/other/splash_screen.dart';
 import 'package:tikitar_demo/features/webview/company_list_screen.dart';
@@ -96,6 +97,13 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Ensure this line is there
   //You're calling SharedPreferences.getInstance() before Flutter is fully ready,
   //most likely before WidgetsFlutterBinding.ensureInitialized() is called.
+
+  // Force portrait mode only
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown, // optional: allows upside-down portrait
+  ]);
+
   runApp(MyApp());
 }
 

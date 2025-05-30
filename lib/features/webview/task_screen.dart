@@ -136,6 +136,7 @@ class _TaskScreenState extends State<TaskScreen> {
       popup.style.display = 'flex';
       popup.style.alignItems = 'center';
       popup.style.justifyContent = 'center';
+      popup.style.padding = '10px'; // to prevent edge overflow on small screens
 
       const inner = document.createElement('div');
       inner.style.background = '#fff';
@@ -146,7 +147,20 @@ class _TaskScreenState extends State<TaskScreen> {
       inner.style.maxWidth = '80%';
       inner.style.boxSizing = 'border-box';
 
-      inner.innerHTML = content;
+      // Add inline style overrides to content inputs
+      const styledContent = `
+        <style>
+          #flutter-popup .form-control,
+          #flutter-popup .form-select {
+            width: 100% !important;
+            min-width: unset !important;
+            box-sizing: border-box;
+          }
+        </style>
+        \${content}
+      `;
+
+      inner.innerHTML = styledContent;
 
       popup.appendChild(inner);
       document.body.appendChild(popup);
@@ -224,14 +238,15 @@ class _TaskScreenState extends State<TaskScreen> {
         <input type="text" placeholder="Company Name" id="popup-name" class="form-control mb-1"/>
         <input type="text" placeholder="City" class="form-control mb-1 loc-city"/>
         <input type="text" placeholder="Zip" class="form-control mb-1 loc-zip"/>
-        <select id="popup-states" class="form-select">
+        <select id="popup-states" class="form-select mb-1">
           $stateOptionsHTML
-        </select><br/>
+        </select>
         <select id="popup-category" class="form-select mb-1">
           $categoryOptionsHTML
-        </select><br/>
+        </select>
         <input type="text" placeholder="Address Line 1" class="form-control mb-1 address-line-1"/>
         <input type="text" placeholder="Branch Name" class="form-control mb-1 branch-name"/>
+        <br />
         <button id="popup-close" class="btn btn-danger me-2">Close</button>
         <button id="submit-company" class="btn btn-primary">Save</button>
       \`;
@@ -263,13 +278,13 @@ class _TaskScreenState extends State<TaskScreen> {
     document.querySelectorAll('.addmore')[1]?.addEventListener('click', function(e) {
       e.preventDefault();
       const html = \`
-        <h5>Add New Client</h5>
+        <h5>Add New Contact Person</h5>
         <input type="text" placeholder="Contact Person" class="form-control mb-1 contact_person"/>
         <input type="text" placeholder="Contact Email" class="form-control mb-1 contact_email"/>
         <input type="text" placeholder="Contact Phone" class="form-control mb-1 contact_phone"/>
         <input type="text" placeholder="Job Title" class="form-control mb-1 job_title"/>
         <input type="text" placeholder="Whatsapp" class="form-control mb-1 whatsapp"/>
-        
+        <br />
         <button id="popup-close" class="btn btn-danger me-2">Close</button>
         <button id="submit-client" class="btn btn-primary">Save</button>
       \`;
