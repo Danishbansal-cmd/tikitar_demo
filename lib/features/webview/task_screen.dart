@@ -400,24 +400,41 @@ class _TaskScreenState extends State<TaskScreen> {
       }
     }
 
-    // 📎 Visiting Card Upload Click Handler
+    let uploadClickHandler; // Global variable to store the handler reference
+    // 📎 Visiting Card Upload Click Handler for Flutter-only environment
     function attachUploadClickHandler() {
+      // Select the anchor tag inside the .uploadfilewrapper container
       const uploadWrapperLink = document.querySelector('.uploadfilewrapper a');
+
+      // Proceed only if the link is found
       if (uploadWrapperLink) {
-        uploadWrapperLink.addEventListener('click', function (e) {
-          e.preventDefault();
+        // Remove any previously attached listener
+        if (uploadWrapperLink.uploadClickHandler) {
+          uploadWrapperLink.removeEventListener('click', uploadWrapperLink.uploadClickHandler);
+        }
+
+        // Define and assign a new named handler
+        const handler = function (e) {
+          e.preventDefault(); // Prevent default anchor behavior (e.g., navigation)
+
+          // Check if the flutter_inappwebview bridge is available
           if (window.flutter_inappwebview) {
+            // Call the Flutter handler named 'uploadVisitingCard'
             window.flutter_inappwebview.callHandler('uploadVisitingCard');
-          } else if (window.ReactNativeWebView) {
-            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'uploadVisitingCard' }));
-          } else if (window.Flutter) {
-            window.Flutter.postMessage(JSON.stringify({ type: 'uploadVisitingCard' }));
+          } else {
+            // Optional: Warn if the Flutter WebView bridge is not available
+            console.warn('flutter_inappwebview is not available.');
           }
-        });
+        };
+
+        // Save reference and attach
+        uploadWrapperLink.uploadClickHandler = handler;
+        uploadWrapperLink.addEventListener('click', handler);
       }
     }
 
     // Initial attach
+    // 🔄Run the click handler attachment on page load or whenever needed
     attachUploadClickHandler();
   """;
   }
@@ -460,77 +477,58 @@ class _TaskScreenState extends State<TaskScreen> {
       },
     );
 
+    // Allow only the following file formats to be uploaded:
+    final allowedFormats = ['jpg', 'jpeg', 'png', 'heic'];
+
     if (option == null || option == 0) return; // User canceled
 
     try {
       XFile? pickedFile;
+      File? selectedFile;
       String? fileName;
 
-      if (option == 1) {
-        // Camera
+      if (option == 1 || option == 2) {
+        // Camera or gallery
         pickedFile = await ImagePicker().pickImage(
-          source: ImageSource.camera,
+          source: option == 1 ? ImageSource.camera : ImageSource.gallery,
           imageQuality: 80,
           maxWidth: 1200,
         );
-        fileName = pickedFile?.name ?? 'camera_image.jpg';
-      } else if (option == 2) {
-        // Gallery
-        pickedFile = await ImagePicker().pickImage(
-          source: ImageSource.gallery,
-          imageQuality: 80,
-          maxWidth: 1200,
-        );
-        fileName = pickedFile?.name ?? 'gallery_image.jpg';
+
+        if (pickedFile == null) return; // User canceled the image picker
+
+        selectedFile = File(pickedFile.path);
+        fileName = pickedFile.name;
       } else if (option == 3) {
         // File picker
         final result = await FilePicker.platform.pickFiles(
           type: FileType.custom,
-          allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'],
+          allowedExtensions: allowedFormats,
         );
 
-        if (result != null && result.files.isNotEmpty) {
-          final file = result.files.first;
-          setState(() {
-            _visitedCardFile = File(file.path!);
-          });
-          fileName = file.name;
+        if (result == null || result.files.isEmpty) return; // User canceled
+
+        final file = result.files.first;
+
+        if (!allowedFormats.contains(file.extension?.toLowerCase())) {
+          throw PlatformException(code: 'INVALID_FORMAT', message: 'Unsupported file format.');
         }
+
+        selectedFile = File(file.path!);
+        fileName = file.name;
       }
 
-      if (pickedFile != null && option != 3) {
+      // Ensure a file is actually selected
+      if (selectedFile != null && fileName != null) {
         // For image_picker results
         setState(() {
-          _visitedCardFile = File(pickedFile!.path);
+          _visitedCardFile = selectedFile!;
         });
-        fileName = pickedFile.name;
-      }
-
-      if (fileName != null) {
-        // Update the DOM content in WebView
-        final safeFileName = fileName
-            .replaceAll("'", "\\'")
-            .replaceAll('"', '\\"');
+        final safeFileName = fileName.replaceAll("'", "\\'").replaceAll('"', '\\"');
 
         // Inject JavaScript code to update the UI and handle the remove functionality
         _controller?.evaluateJavascript(
           source: """
-          function attachUploadClickHandler() {
-            const uploadWrapperLink = document.querySelector('.uploadfilewrapper a');
-            if (uploadWrapperLink) {
-              uploadWrapperLink.addEventListener('click', function (e) {
-                e.preventDefault();
-                if (window.flutter_inappwebview) {
-                  window.flutter_inappwebview.callHandler('uploadVisitingCard');
-                } else if (window.ReactNativeWebView) {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'uploadVisitingCard' }));
-                } else if (window.Flutter) {
-                  window.Flutter.postMessage(JSON.stringify({ type: 'uploadVisitingCard' }));
-                }
-              });
-            }
-          }
-
           // Function to update the UI based on the selected file
           function updateSelectedFileUI(fileName) {
             const wrapper = document.querySelector('.uploadfilewrapper a');
@@ -544,40 +542,35 @@ class _TaskScreenState extends State<TaskScreen> {
 
               document.getElementById('remove-upload-file')?.addEventListener('click', function() {
                 wrapper.innerHTML = \`
-                  <a href="#" class="d-flex gap-2 align-items-center justify-content-center">
-                    <img src="assets/img/upload.svg" alt=""><span class="scanfile">Scan/Upload Visiting Card</span>
-                  </a>
+                  <div class="uploadfilewrapper a" style="cursor:pointer;">
+                    <img src="assets/img/upload.svg" alt="">
+                    <span class="scanfile">Scan/Upload Visiting Card</span>
+                  </div>
                 \`;
 
                 // Notify Flutter to clear the variable _visitedCardFile
                 if (window.flutter_inappwebview) {
                   window.flutter_inappwebview.callHandler('clearVisitedCardFile');
-                } else if (window.ReactNativeWebView) {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'clearVisitedCardFile' }));
-                } else if (window.Flutter) {
-                  window.Flutter.postMessage(JSON.stringify({ type: 'clearVisitedCardFile' }));
+                } else {
+                  // Optional: Warn if the Flutter WebView bridge is not available
+                  console.warn('flutter_inappwebview is not available.');
                 }
-
-                attachUploadClickHandler(); // Re-bind after re-inserting HTML
               });
             }
           }
 
           // Update the UI with the selected file
           updateSelectedFileUI("${safeFileName}");
-
-          // Initial setup for the upload click handler
-          attachUploadClickHandler();
         """,
         );
       }
     } on PlatformException catch (e) {
-      print("Failed to pick file: $e");
+      developer.log("Failed to pick file: $e", name: "TaskScreen");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick file: ${e.message}')),
       );
     } catch (e) {
-      print("Error picking file: $e");
+      developer.log("Error picking file: $e", name: "TaskScreen");
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error picking file: $e')));
@@ -673,6 +666,11 @@ class _TaskScreenState extends State<TaskScreen> {
         SnackBar(content: Text("Meeting submitted successfully!")),
       );
 
+      // Clear the selected file in Flutter
+      setState(() {
+        _visitedCardFile = null;
+      });
+
       // Clear form fields
       final clearFormJS = """
         // reset the form submitting button
@@ -694,15 +692,16 @@ class _TaskScreenState extends State<TaskScreen> {
         commentboxField.value = '';
         
         // Reset visiting card UI
-        // const wrapper = document.querySelector('.uploadfilewrapper a');
-        // if (wrapper) {
-        //   wrapper.innerHTML = \`
-        //     <a href="#" class="d-flex gap-2 align-items-center justify-content-center">
-        //       <img src="assets/img/upload.svg" alt=""><span class="scanfile">Scan/Upload Visiting Card</span>
-        //     </a>
-        //   \`;
-        //   attachUploadClickHandler(); // Re-bind the click handler
-        // }
+        const wrapper = document.querySelector('.uploadfilewrapper a');
+        if (wrapper) {
+          wrapper.innerHTML = `
+            <div class="uploadfilewrapper a" style="cursor:pointer;">
+              <img src="assets/img/upload.svg" alt="">
+              <span class="scanfile">Scan/Upload Visiting Card</span>
+            </div>
+          `;
+          attachUploadClickHandler(); // Re-bind the click handler
+        }
       """;
 
       await _controller?.evaluateJavascript(
