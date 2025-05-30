@@ -31,32 +31,39 @@ class _UserMeetingsState extends State<UserMeetings> {
 
   Future<void> fetchMeetings() async {
     try {
-      final meetingsList = await MeetingsController.userBasedMeetings(widget.userId);
-      allMeetings = meetingsList;
+      final response = await MeetingsController.userBasedMeetings(widget.userId);
 
-      // Set default date range to the full available period
-      if (allMeetings.isNotEmpty) {
-        final dates = allMeetings.map((m) {
-          final rawDate = m['meeting_date'] ?? m['date'];
-          try {
-            return DateTime.parse(rawDate);
-          } catch (_) {
-            return null;
+      if (response['status'] == true && response['data'] is List) {
+        allMeetings = response['data'];
+
+        // Set default date range to the full available period
+        if (allMeetings.isNotEmpty) {
+          final dates = allMeetings.map((m) {
+            final rawDate = m['meeting_date'] ?? m['date'];
+            try {
+              return DateTime.parse(rawDate);
+            } catch (_) {
+              return null;
+            }
+          }).whereType<DateTime>().toList();
+
+          dates.sort();
+          if (dates.isNotEmpty) {
+            startDate = dates.first;
+            endDate = dates.last;
           }
-        }).whereType<DateTime>().toList();
-
-        dates.sort();
-        if (dates.isNotEmpty) {
-          startDate = dates.first;
-          endDate = dates.last;
         }
-      }
 
-      applyFilter();
-      setState(() => isLoading = false);
+        applyFilter();
+      } else {
+        developer.log("🛑 Unexpected response structure or empty meetings.");
+        allMeetings = [];
+      }
     } catch (e) {
-      developer.log("Failed to fetch meetings: $e");
-      // setState(() => isLoading = false);
+      developer.log("❌ Failed to fetch meetings: $e");
+      allMeetings = [];
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 

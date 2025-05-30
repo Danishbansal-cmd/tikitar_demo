@@ -99,21 +99,20 @@ class _TaskScreenState extends State<TaskScreen> {
             _addContactPersonDetails(contactPersonData: args[0]);
           },
         );
+
+        // to handle the main Form Submitted data
+        _controller?.addJavaScriptHandler(
+          handlerName: 'mainFormSubmit',
+          callback: (args) {
+            // used to handle the main Form data, which is the
+            // submit meeting data
+            _submitMeetingData(args[0]);
+          },
+        );
       },
       onLoadStop: (controller, url) async {
         await _fetchCompaniesData();
         await injectWebJS();
-      },
-      onConsoleMessage: (consoleMessage) {
-        if (consoleMessage.messageLevel == ConsoleMessageLevel.LOG) {
-          final message = consoleMessage.message;
-
-          if (message.startsWith("MAIN_SUBMIT::")) {
-            final jsonData = message.replaceFirst("MAIN_SUBMIT::", "");
-            final data = json.decode(jsonData);
-            _submitMeetingData(data); // Handle main form submit
-          }
-        }
       },
     );
   }
@@ -164,6 +163,9 @@ class _TaskScreenState extends State<TaskScreen> {
       contactEmail.disabled = true;
     }
 
+    // globally storing the comments in the variable to make it accessible from most places
+    const commentboxField = document.querySelector('textarea.form-control[placeholder="Comments"]');
+
     // ✅Company Select Field 
     // get all the selects that match this querySelector
     const selects = document.querySelectorAll('select.form-select[placeholder="Company Name"]');
@@ -181,6 +183,9 @@ class _TaskScreenState extends State<TaskScreen> {
         window.flutter_inappwebview.callHandler('companySelected', selectedCompanyValue);
       });
     });
+
+    // globally storing the companySelect
+    const companySelect = document.querySelector('select.form-select[placeholder="Company Name"]');
 
     // ✅ Contact Person Select Field
     // Contact Person select field injection
@@ -304,9 +309,7 @@ class _TaskScreenState extends State<TaskScreen> {
           console.log('Please fill all fields.');
         }
 
-        const companySelect = document.querySelector('select.form-select[placeholder="Company Name"]');
         let client_id_data = companySelect?.value || null;
-
         // if no company is selected then, it shows this option "Select Company"
         // then send the null
         if (client_id_data === "Select Company") {
@@ -338,18 +341,29 @@ class _TaskScreenState extends State<TaskScreen> {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
 
-        const contactPerson = document.querySelector('select.form-select[placeholder="Contact Person"]')?.value || '';
-        const comments = document.querySelector('textarea.form-control[placeholder="Comments"]')?.value || '';
+        let client_id_data = companySelect?.value || null;
+        // if no company is selected then, it shows this option "Select Company"
+        // then send the null
+        if (client_id_data === "Select Company") {
+          client_id_data = null;
+        }
 
+        // 🔘Get selected visited option (site or office)
+        const visitedValue = document.querySelector('input[name="inlineRadioOptions"]:checked')?.value || '';
+
+        // making the visited field value to capitalize, as it is necessary for api
+        // this is how the api demands it
         const data = {
-          client_id: contactPerson,
-          contact_person_mobile: contactMobile,
-          contact_person_email: contactEmail,
-          comments: comments
+          client_id: client_id_data,
+          contact_person_mobile: contactMobile.value || '',
+          contact_person_email: contactEmail.value || '',
+          comments: commentboxField?.value || '',
+          visited: visitedValue.charAt(0).toUpperCase() + visitedValue.slice(1).toLowerCase()
         };
 
-        // ❌❌❌ fix once apis are corrected
-        console.log("MAIN_SUBMIT::" + JSON.stringify(data));
+        // will call this handler or function that will handle the 
+        // submit meeting data
+        window.flutter_inappwebview.callHandler('mainFormSubmit', data);
 
         // After submission, notify Flutter to clear the form and visiting card
         if (window.flutter_inappwebview) {
@@ -359,26 +373,6 @@ class _TaskScreenState extends State<TaskScreen> {
         } else if (window.Flutter) {
           window.Flutter.postMessage(JSON.stringify({ type: 'clearFormAndVisitingCard' }));
         }
-      });
-    }
-
-    // Add input validation for mobile number field
-    const contactMobileInput = document.querySelector('input.form-control[placeholder="Contact Person Mobile"]');
-    if (contactMobileInput) {
-      // Set input type to 'tel' for better mobile keyboard support
-      contactMobileInput.type = 'tel';
-      
-      // Add input event handler
-      contactMobileInput.addEventListener('input', function() {
-        // Remove any non-digit characters and limit to 10 digits
-        this.value = this.value.replace(/[^0-9]/g, '').substring(0, 10);
-      });
-      
-      // Add paste event handler to handle pasted content
-      contactMobileInput.addEventListener('paste', function(e) {
-        e.preventDefault();
-        const pastedText = (e.clipboardData || window.clipboardData).getData('text');
-        this.value = pastedText.replace(/[^0-9]/g, '').substring(0, 10);
       });
     }
 
@@ -577,17 +571,52 @@ class _TaskScreenState extends State<TaskScreen> {
 
   Future<void> _submitMeetingData(Map<String, dynamic> formData) async {
     try {
+      // Validate required fields
+      final requiredFields = {
+        "client_id": "Company is required",
+        "contact_person_email": "Contact Person Email is required",
+        "contact_person_mobile": "Contact Person Mobile is required",
+        "comments": "Comments are required",
+      };
+
+      for (var entry in requiredFields.entries) {
+        final value = formData[entry.key];
+        if (value == null || value.toString().trim().isEmpty) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(entry.value)));
+          await _controller?.evaluateJavascript(
+            source: '''
+              // reset the form submitting button
+              resetSubmitButton();
+            ''',
+          );
+          return;
+        }
+      }
+
       // Check and request location permission
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
 
+      // makes sure the widget is mounted or in the context
+      if (!mounted) return;
+
+      developer.log("formData $formData", name: "TaskScreen");
+
       if (permission == LocationPermission.deniedForever ||
           permission == LocationPermission.denied) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text("Location permission denied")));
+        await _controller?.evaluateJavascript(
+          source: '''
+            // reset the form submitting button
+            resetSubmitButton();
+          ''',
+        );
         return;
       }
 
@@ -602,7 +631,7 @@ class _TaskScreenState extends State<TaskScreen> {
         "longitude": position.longitude,
       };
 
-      print("visitedCardFile: $_visitedCardFile");
+      developer.log("visitedCardFile: $_visitedCardFile", name: "TaskScreen");
 
       final now = DateTime.now();
       final formattedDate =
@@ -611,14 +640,19 @@ class _TaskScreenState extends State<TaskScreen> {
       // Submit meeting with visited card file (if selected)
       await MeetingsController.submitMeeting(
         clientId: enrichedFormData["client_id"],
+        userId: userId.toString(),
         email: enrichedFormData["contact_person_email"],
         mobile: enrichedFormData["contact_person_mobile"],
         comments: enrichedFormData["comments"],
         latitude: enrichedFormData["latitude"].toString(),
         longitude: enrichedFormData["longitude"].toString(),
         meeting_date: formattedDate,
+        visitedData: enrichedFormData['visited'],
         visitedCardFile: _visitedCardFile, // Include the visited card file here
       );
+
+      // makes sure the widget is mounted or in the context
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Meeting submitted successfully!")),
@@ -626,38 +660,56 @@ class _TaskScreenState extends State<TaskScreen> {
 
       // Clear form fields
       final clearFormJS = """
-        document.querySelector('select.form-select[placeholder="Contact Person"]').selectedIndex = 0;
-        document.querySelector('input.form-control[placeholder="Contact Person Mobile"]').value = '';
-        document.querySelector('input.form-control[placeholder="Contact Person Email"]').value = '';
-        document.querySelector('textarea.form-control[placeholder="Comments"]').value = '';
+        // reset the form submitting button
+        resetSubmitButton();
+
+        // first selecting the fields then resetting to default
+        const companySelects = document.querySelectorAll('select.form-select[placeholder="Company Name"]');
+        const contactPersonSelects = document.querySelectorAll('select.form-select[placeholder="Contact Person"]');
+
+        companySelects.forEach(select => {
+          select.selectedIndex = 0; // Set to first option (default)
+        });
+        contactPersonSelects.forEach(select => {
+          select.selectedIndex = 0; // Set to first option (default)
+        });
+
+        contactMobile.value = '';
+        contactEmail.value = '';
+        commentboxField.value = '';
         
         // Reset visiting card UI
-        const wrapper = document.querySelector('.uploadfilewrapper a');
-        if (wrapper) {
-          wrapper.innerHTML = \`
-            <a href="#" class="d-flex gap-2 align-items-center justify-content-center">
-              <img src="assets/img/upload.svg" alt=""><span class="scanfile">Scan/Upload Visiting Card</span>
-            </a>
-          \`;
-          attachUploadClickHandler(); // Re-bind the click handler
-        }
-        
-        resetSubmitButton();
+        // const wrapper = document.querySelector('.uploadfilewrapper a');
+        // if (wrapper) {
+        //   wrapper.innerHTML = \`
+        //     <a href="#" class="d-flex gap-2 align-items-center justify-content-center">
+        //       <img src="assets/img/upload.svg" alt=""><span class="scanfile">Scan/Upload Visiting Card</span>
+        //     </a>
+        //   \`;
+        //   attachUploadClickHandler(); // Re-bind the click handler
+        // }
       """;
 
       await _controller?.evaluateJavascript(
         source: '''
           $clearFormJS
-          resetSubmitButton();
         ''',
       );
     } catch (e) {
-      print("Error fetching location or submitting meeting: $e");
+      developer.log(
+        "Error fetching location or submitting meeting: $e",
+        name: "TaskScreen",
+      );
+
+      // makes sure the widget is mounted or in the context
+      if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Failed to submit meeting")));
       await _controller?.evaluateJavascript(
         source: '''
+          // reset the form submitting button
           resetSubmitButton();
         ''',
       );
@@ -884,7 +936,9 @@ class _TaskScreenState extends State<TaskScreen> {
     required Map<String, dynamic> contactPersonData,
   }) async {
     // Ensure the client ID is available (you can pass it or store it somewhere)
-    final clientId = contactPersonData['client_id'] ?? 0; // Replace with your actual logic to fetch client_id
+    final clientId =
+        contactPersonData['client_id'] ??
+        0; // Replace with your actual logic to fetch client_id
 
     if (clientId == 0) {
       developer.log("Client ID is not set", name: "TaskScreen");
@@ -925,12 +979,12 @@ class _TaskScreenState extends State<TaskScreen> {
         source: """
           // close the popup after successfully adding the contact person
           document.getElementById('flutter-popup')?.remove();
-        """
+        """,
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 }
