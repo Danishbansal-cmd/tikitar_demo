@@ -103,12 +103,12 @@ END:VCARD
       gapless: true,
       // for the side main dots of the QR code
       eyeStyle: QrEyeStyle(
-        eyeShape: QrEyeShape.circle,
+        eyeShape: QrEyeShape.square,
         color: const ui.Color(0xFF000000),
       ),
       // for the data module or the dots of the QR code
       dataModuleStyle: QrDataModuleStyle(
-        dataModuleShape: QrDataModuleShape.circle,
+        dataModuleShape: QrDataModuleShape.square,
         color: const ui.Color(0xFF000000),
       ),
       embeddedImage: null,

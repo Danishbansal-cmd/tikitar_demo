@@ -9,6 +9,7 @@ import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'package:tikitar_demo/features/data/local/token_storage.dart';
 import 'package:tikitar_demo/features/other/user_meetings.dart';
 import 'dart:developer' as developer;
+import 'package:url_launcher/url_launcher.dart';
 
 class WebviewCommonScreen extends StatefulWidget {
   final String url;
@@ -147,6 +148,21 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                               ),
                         ),
                       );
+                    },
+                  );
+
+                  controller.addJavaScriptHandler(
+                    handlerName: 'openPdfExternally',
+                    callback: (args) async {
+                      if (args.isNotEmpty) {
+                        final url = args[0];
+                        final Uri uri = Uri.parse(url);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        } else {
+                          developer.log("Could not launch PDF URL: \$url");
+                        }
+                      }
                     },
                   );
                 },

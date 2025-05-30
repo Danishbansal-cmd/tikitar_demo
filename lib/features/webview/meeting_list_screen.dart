@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'package:tikitar_demo/features/auth/meetings_controller.dart';
 import 'dart:developer' as developer;
+
+import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 
 class MeetingListScreen extends StatefulWidget {
   const MeetingListScreen({super.key});
@@ -13,6 +17,14 @@ class MeetingListScreen extends StatefulWidget {
 }
 
 class _MeetingListScreenState extends State<MeetingListScreen> {
+  int? userId;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeMeetingListScreen(); // to initialize the userId variable
+  }
+
   @override
   Widget build(BuildContext context) {
     return WebviewCommonScreen(
@@ -22,9 +34,21 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
         await fetchAndInjectMeetings(
           controller: controller,
           pageName: "MeetingListScreen",
+          userId: userId
         );
       },
     );
+  }
+
+    // Get userData from SharedPreferences, to finally get the userId
+  Future<void> _initializeMeetingListScreen() async {
+    final userData = await DataStorage.getUserData();
+    if (userData != null) {
+      final decoded = jsonDecode(userData);
+      // converting to int successfully
+      userId = int.tryParse(decoded['id'].toString()) ?? 0;
+    }
+    developer.log("Extracted userId: $userId", name: "TaskScreen");
   }
 }
 
@@ -35,7 +59,9 @@ Future<void> fetchAndInjectMeetings({
 }) async {
   try {
     developer.log("User ID being passed: $userId", name: "DashboardScreen");
-    final meetingsList = await MeetingsController.userBasedMeetings(userId!);
+    final response = await MeetingsController.userBasedMeetings(userId!);
+    final List<dynamic> meetingsList = response['data'] ?? [];
+
     developer.log("Meeting list response: $meetingsList", name: "DashboardScreen");
 
     String tableRowsJS = '''
@@ -50,9 +76,13 @@ Future<void> fetchAndInjectMeetings({
 
     for (int i = 0; i < meetingsList.length; i++) {
       final meeting = meetingsList[i];
+      if (meeting == null) continue; // Skip if null
       final rank = i + 1;
       // for date, escape new lines and quotes
       final rawDate = meeting['meeting_date'] ?? '';
+      final clientName = meeting['client'] != null
+        ? Functions.escapeJS(meeting['client']['name'] ?? '')
+        : 'N/A';
       String formattedDate = '';
       try {
         final parsedDate = DateTime.parse(rawDate);
@@ -65,13 +95,20 @@ Future<void> fetchAndInjectMeetings({
       // for comments, escape new lines and quotes
       final comments = Functions.escapeJS(meeting['comments'] ?? '');
 
+      // to insert the link of the file that is being submitted during the meeting
+      // it contains the link
+      final visitingCardUrl = Functions.escapeJS(meeting['visiting_card'] ?? '');
+
       tableRowsJS += """
           <tr>
             <td>$rank</td>
-            <td>${meeting['client']['name']}</td>
+            <td>$clientName</td>
             <td>$date</td>
             <td>
-              <a href="#" class="chat-icon" data-comment="$comments">
+              <a href="#" 
+              class="chat-icon" 
+              data-comment="$comments"
+              data-pdf="https://app.tikitar.com/storage/app/public/$visitingCardUrl">
                 <span class="material-symbols-outlined">chat</span>
               </a>
             </td>
@@ -102,60 +139,62 @@ Future<void> injectTableDataWithComments({
 }) async {
   try {
     final fullJS = """
-        const table = document.querySelector('.reporttable');
-        const rows = table.querySelectorAll('tr');
-        for (let i = rows.length - 1; i > -1; i--) {
-          table.deleteRow(i);
-        }
-        table.insertAdjacentHTML('beforeend', `$tableRowsDataJS`);
+      const table = document.querySelector('.reporttable');
+      const rows = table.querySelectorAll('tr');
+      for (let i = rows.length - 1; i > -1; i--) {
+        table.deleteRow(i);
+      }
+      table.insertAdjacentHTML('beforeend', `$tableRowsDataJS`);
 
-        // Create popup modal if not exists
-        if (!document.getElementById('commentModal')) {
-          const modal = document.createElement('div');
-          modal.id = 'commentModal';
-          modal.style.position = 'fixed';
-          modal.style.top = '0';
-          modal.style.left = '0';
-          modal.style.width = '100%';
-          modal.style.height = '100%';
-          modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+      if (!document.getElementById('commentModal')) {
+        const modal = document.createElement('div');
+        modal.id = 'commentModal';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        modal.style.display = 'none';
+        modal.style.justifyContent = 'center';
+        modal.style.alignItems = 'center';
+        modal.style.zIndex = '1000';
+        modal.innerHTML = \`
+          <div style="background:#fff; padding:25px 15px; border-radius:8px; max-width:90%; max-height:80%; overflow:auto; position:relative;">
+            <span id="closeModal" style="
+              position:absolute;
+              top:0px;
+              right:0px;
+              cursor:pointer;
+              font-size:20px;
+              padding:0px 10px;
+              background-color:#f0f0f0;
+              border-radius:8px;
+              transition:background-color 0.2s ease;
+            ">&times;</span>
+            <div id="commentContent" style="white-space:pre-wrap; margin-bottom: 20px;"></div>
+            <button id="openPdfBtn" style="padding: 10px 15px; background-color: #007BFF; color: white; border: none; border-radius: 5px;">View PDF</button>
+          </div>
+        \`;
+        document.body.appendChild(modal);
+        document.getElementById('closeModal').onclick = () => {
           modal.style.display = 'none';
-          modal.style.justifyContent = 'center';
-          modal.style.alignItems = 'center';
-          modal.style.zIndex = '1000';
-          modal.innerHTML = \`
-            <div style="background:#fff; padding:25px 15px; border-radius:8px; max-width:90%; max-height:80%; overflow:auto; position:relative;">
-              <span id="closeModal" style="
-                position:absolute;
-                top:0px;
-                right:0px;
-                cursor:pointer;
-                font-size:20px;
-                padding:0px 10px;
-                background-color:#f0f0f0;
-                border-radius:8px;
-                transition:background-color 0.2s ease;
-              ">&times;</span>
-              <div id="commentContent" style="white-space:pre-wrap;"></div>
-            </div>
-          \`;
-          document.body.appendChild(modal);
-
-          document.getElementById('closeModal').onclick = () => {
-            modal.style.display = 'none';
-          }
         }
+      }
 
-        // Attach click events
-        document.querySelectorAll('.chat-icon').forEach(el => {
-          el.addEventListener('click', function(e) {
-            e.preventDefault();
-            const comment = this.getAttribute('data-comment');
-            document.getElementById('commentContent').innerText = comment;
-            document.getElementById('commentModal').style.display = 'flex';
-          });
+      document.querySelectorAll('.chat-icon').forEach(el => {
+        el.addEventListener('click', function(e) {
+          e.preventDefault();
+          const comment = this.getAttribute('data-comment');
+          const pdfUrl = this.getAttribute('data-pdf');
+          document.getElementById('commentContent').innerText = comment;
+          document.getElementById('commentModal').style.display = 'flex';
+          document.getElementById('openPdfBtn').onclick = () => {
+            window.flutter_inappwebview.callHandler('openPdfExternally', pdfUrl);
+          };
         });
-      """;
+      });
+    """;
 
     await controller.evaluateJavascript(source: fullJS);
   } catch (e) {
