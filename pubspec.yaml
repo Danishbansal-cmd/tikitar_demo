@@ -46,4 +46,5 @@ flutter:
   assets:
     - assets/images/tikitar-logo.png
     - assets/images/tikitar-bar.png
+    - assets/images/ic_launcher.png
     - assets/svg/warning.svg

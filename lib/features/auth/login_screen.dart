@@ -51,10 +51,13 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 SizedBox(height: MediaQuery.of(context).size.height * 0.15), // Add top spacing
                 // Logo
-                Image.asset(
-                  'assets/images/tikitar-logo.png',  // logo asset
-                  height: 300,
-                  width: 200,
+                Container(
+                  padding: const EdgeInsets.all(80),
+                  child: Image.asset(
+                    'assets/images/ic_launcher.png',
+                    height: 200,
+                    width: 200,
+                  ),
                 ),
                 const SizedBox(height: 5),
                 // Email Label
