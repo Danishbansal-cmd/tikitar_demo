@@ -41,7 +41,6 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
       body: Stack(
         children: [
           if (_isLoading)
@@ -109,12 +108,46 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                           Navigator.pushReplacementNamed(context, '/dashboard');
                           return;
                         case "flutter_navigate_to_logout":
-                          await TokenStorage.clearToken();
-                          await DataStorage.clearUserData();
-                          Navigator.pushNamedAndRemoveUntil(
-                            context,
-                            '/login',
-                            (_) => false,
+                          bool? confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: Text("Logout"),
+                                content: Text(
+                                  "Are you sure you want to logout?",
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed:
+                                        () => Navigator.of(context).pop(false),
+                                    child: Text("Cancel"),
+                                  ),
+                                  TextButton(
+                                    onPressed:
+                                        () => Navigator.of(context).pop(true),
+                                    child: Text("Sure"),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+
+                          if (confirmed == true) {
+                            await TokenStorage.clearToken();
+                            await DataStorage.clearUserData();                            
+                            Navigator.pushNamedAndRemoveUntil(
+                              // ignore: use_build_context_synchronously
+                              context,
+                              '/login',
+                              (_) => false,
+                            );
+                          }
+                          await controller.evaluateJavascript(
+                            source: """
+                              // resetting the color of the icon to default color
+                              const moveItemElement = Array.from(document.querySelectorAll(".material-symbols-outlined")).find(el => el.textContent.trim() === "move_item");
+                              moveItemElement.style.color = "#838383";
+                            """,
                           );
                           return;
                         default:
@@ -158,7 +191,10 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                         final url = args[0];
                         final Uri uri = Uri.parse(url);
                         if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
                         } else {
                           developer.log("Could not launch PDF URL: \$url");
                         }
