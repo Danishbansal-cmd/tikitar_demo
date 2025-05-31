@@ -37,6 +37,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       url: "dashboard.php",
       title: "Dashboard",
       onLoadStop: (controller, url) async {
+        // ✅ Show loading spinner immediately
+        await showLoadingSpinner(controller);
+
         await handleDashboardLoad(controller);
       },
     );
@@ -109,11 +112,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required InAppWebViewController controller,
     String? pageName,
   }) async {
+    String tableRowsJS = '''
+      <tr>
+        <th>Rank</th>
+        <th>Employee Name</th>
+        <th>Role</th>
+        <th>View</th>
+      </tr>
+    ''';
     try {
       final response = await UserController.specificEmployeesReporting(userId);
       final users = response['employees'];
 
-      String tableRowsJS = '';
       for (int i = 0; i < users.length; i++) {
         final user = users[i];
         final rank = i + 1;
@@ -161,6 +171,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }) async {
     try {
       final fullJS = """
+          // Remove loading spinner
+          const loaderToRemove = document.getElementById('dataLoader');
+          if (loaderToRemove) loaderToRemove.remove();
+          
           const table = document.querySelector('.reporttable');
           const rows = table.querySelectorAll('tr');
           for (let i = rows.length - 1; i > 0; i--) {

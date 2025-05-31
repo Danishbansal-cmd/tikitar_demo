@@ -2,10 +2,13 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'dart:developer' as developer;
 
 import 'package:tikitar_demo/core/network/api_base.dart';
+import 'package:tikitar_demo/features/auth/company_controller.dart';
+import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
 
 class CompanyListScreen extends StatefulWidget {
@@ -17,21 +20,13 @@ class CompanyListScreen extends StatefulWidget {
 
 class _CompanyListScreenState extends State<CompanyListScreen> {
   InAppWebViewController? _controller;
-  Map? args;
-  dynamic from;
-  bool _initialized = false;
+  int? userId;
 
-  // This method is called when the widget is first created
-  // to safely access and store the route arguments passed
-  //to the CompanyListScreen
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_initialized) {
-      args = ModalRoute.of(context)?.settings.arguments as Map?;
-      from = args?['from'];
-      _initialized = true;
-    }
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _initializeCompanyListScreen();
   }
 
   @override
@@ -56,13 +51,107 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
         );
       },
       onLoadStop: (controller, url) async {
+        // ❌❌❌ needs to fix
+        // when user clicks on the view button to make the dialog appear
+        // it starts spinning
         // ✅ Show loading spinner immediately
         await showLoadingSpinner(controller);
 
         // You can add any additional logic here if needed
         await injectMoreJS();
+
+        // fetch the companies data and inject in this view
+        await fetchCompanies();
       },
     );
+  }
+
+  Future<void> _initializeCompanyListScreen() async {
+    // Get userData from SharedPreferences, to finally get the userId
+    final userData = await DataStorage.getUserData();
+    if (userData != null) {
+      final decoded = jsonDecode(userData);
+      userId = int.tryParse(decoded['id'].toString()) ?? 0;
+    }
+    developer.log("Extracted userId: $userId", name: "CompanyListScreen");
+  }
+
+  Future<void> fetchCompanies() async {
+    String companyRowJS = '''
+      <tr>
+        <th>Rank</th>
+        <th>Company Name</th>
+        <th>View</th>
+      </tr>
+    ''';
+    developer.log(
+      "fetchCompaniesAndInject send data ${userId}",
+      name: "CompanyListScreen",
+    );
+    final response = await CompanyController.getOnlyCompanies(userId!);
+
+    if (response['status'] == true) {
+      developer.log(
+        "fetchCompaniesAndInject successfully ${response['data']}",
+        name: "CompanyListScreen",
+      );
+      final companiesData = response['data'];
+
+      for (int i = 0; i < companiesData.length; i++) {
+        final company = companiesData[i];
+        if (company == null) continue; // Skip if null
+
+        final rank = i + 1;
+        final name = Functions.escapeJS(company['name'].toString());
+        final id = company['id'];
+
+        companyRowJS += """
+          <tr>
+            <td>$rank</td>
+            <td>$name</td>
+            <td>
+              <a class="popup-link" 
+              href="#viewcompanydetails"
+              data-id="$id" data-name="$name">
+                <span class="material-symbols-outlined">
+                  visibility
+                </span>
+              </a>
+            </td>
+          </tr>
+        """;
+      }
+      developer.log("companyRowJS $companyRowJS", name: "CompanyListScreen");
+    } else {
+      developer.log(
+        "fetchCompaniesAndInject un-successfully ${response['data']}",
+        name: "CompanyListScreen",
+      );
+    }
+
+    _injectCompanies(companyRowJS: companyRowJS);
+  }
+
+  Future<void> _injectCompanies({required String companyRowJS}) async {
+    try {
+      final fullJs = """
+        var table = document.querySelector(".reporttable.companies");
+        var rows = table.querySelectorAll('tr');
+        for (let i = rows.length - 1; i > -1; i--) {
+          table.deleteRow(i);
+        }
+
+        var html = `$companyRowJS`;
+        table.insertAdjacentHTML('beforeend', html);
+      """;
+
+      await _controller?.evaluateJavascript(source: fullJs);
+    } catch (e) {
+      developer.log(
+        "Error fetching or injecting Companies data: $e",
+        name: "CompanyListScreen",
+      );
+    }
   }
 
   Future<void> injectMoreJS() async {
@@ -70,8 +159,7 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
       source: """
         // Remove loading spinner
         const loaderToRemove = document.getElementById('dataLoader');
-        if (loaderToRemove) loaderToRemove.remove();
-        
+        if (loaderToRemove) loaderToRemove.remove();        
         
         const fieldIds = [
           'company', 'city', 'zip', 'state',

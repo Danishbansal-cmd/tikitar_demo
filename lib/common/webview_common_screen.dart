@@ -145,7 +145,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                           await controller.evaluateJavascript(
                             source: """
                               // resetting the color of the icon to default color
-                              const moveItemElement = Array.from(document.querySelectorAll(".material-symbols-outlined")).find(el => el.textContent.trim() === "move_item");
+                              var moveItemElement = Array.from(document.querySelectorAll(".material-symbols-outlined")).find(el => el.textContent.trim() === "move_item");
                               moveItemElement.style.color = "#838383";
                             """,
                           );
@@ -310,7 +310,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
     required String currentRoute,
   }) {
     return """
-      const currentRoute = "$currentRoute";
+      var currentRoute = "$currentRoute";
 
       // selecting the tag with class ".profile-img" and storing it
       let profileImageSelector = document.querySelector(".profile-img");
