@@ -134,7 +134,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
 
                           if (confirmed == true) {
                             await TokenStorage.clearToken();
-                            await DataStorage.clearUserData();                            
+                            await DataStorage.clearUserData();
                             Navigator.pushNamedAndRemoveUntil(
                               // ignore: use_build_context_synchronously
                               context,
@@ -227,7 +227,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                       name: "WebviewCommonScreen",
                     );
                     developer.log(
-                      "widget.url $sendUrl",
+                      "sendUrl $sendUrl",
                       name: "WebviewCommonScreen",
                     );
 
@@ -238,6 +238,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                         // added this field to send the label's text, based on which the
                         // specific icon is colored
                         activeIconLabel: sendUrl,
+                        currentRoute: widget.url,
                       ),
                     );
 
@@ -306,19 +307,26 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
   String _footerNavigationJS({
     required bool allowAddTask,
     String? activeIconLabel,
+    required String currentRoute,
   }) {
     return """
+      const currentRoute = "$currentRoute";
+
       // selecting the tag with class ".profile-img" and storing it
       let profileImageSelector = document.querySelector(".profile-img");
       
       // Adding the Listener for the "profileImageSelector"
       profileImageSelector?.addEventListener("click", function() {
-        window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_profile");
+        if(currentRoute !== "myprofile.php"){
+          window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_profile");
+        }
       });
 
       document.querySelector(".menu")?.addEventListener("click", function(e) {
         e.preventDefault();
-        window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_dashboard");
+        if(currentRoute !== "dashboard.php"){
+          window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_dashboard");
+        }
       });
 
       const footerIcons = document.querySelectorAll(".material-symbols-outlined");
@@ -327,19 +335,25 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
 
         if (label === "account_circle") {
           icon.addEventListener("click", function() {
-            window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_profile");
+            if(currentRoute !== "myprofile.php"){
+              window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_profile");
+            }
           });
         }
 
         if (label === "format_list_numbered") {
           icon.addEventListener("click", function() {
-            window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_meetingList");
+            if(currentRoute !== "meeting-list.php"){
+              window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_meetingList");
+            }
           });
         }
 
         if (label === "factory") {
           icon.addEventListener("click", function() {
-            window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_companyList");
+            if(currentRoute !== "company-list.php"){
+              window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_companyList");
+            }
           });
         }
 
@@ -348,7 +362,9 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
           icon.removeAttribute("data-bs-toggle");
           icon.removeAttribute("data-bs-target");
           icon.addEventListener("click", function() {
-            window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_addTask");
+            if(currentRoute !== "task.php"){
+              window.flutter_inappwebview.callHandler("HANDLE_NAVIGATION", "flutter_navigate_to_addTask");
+            }
           });
           """ : ""}
         }

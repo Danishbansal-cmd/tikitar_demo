@@ -6,6 +6,7 @@ import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'dart:developer' as developer;
 
 import 'package:tikitar_demo/core/network/api_base.dart';
+import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
 
 class CompanyListScreen extends StatefulWidget {
   const CompanyListScreen({super.key});
@@ -55,6 +56,9 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
         );
       },
       onLoadStop: (controller, url) async {
+        // ✅ Show loading spinner immediately
+        await showLoadingSpinner(controller);
+
         // You can add any additional logic here if needed
         await injectMoreJS();
       },
@@ -64,6 +68,11 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
   Future<void> injectMoreJS() async {
     await _controller?.evaluateJavascript(
       source: """
+        // Remove loading spinner
+        const loaderToRemove = document.getElementById('dataLoader');
+        if (loaderToRemove) loaderToRemove.remove();
+        
+        
         const fieldIds = [
           'company', 'city', 'zip', 'state',
           'fullname', 'mobile', 'whatsappnumber',

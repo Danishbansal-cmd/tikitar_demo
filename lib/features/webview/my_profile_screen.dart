@@ -10,6 +10,8 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:developer' as developer;
 
+import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
+
 class MyProfileScreen extends StatefulWidget {
   const MyProfileScreen({super.key});
 
@@ -27,6 +29,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       url: "myprofile.php",
       title: "My Profile",
       onLoadStop: (controller, url) async {
+        // ✅ Show loading spinner immediately
+        await showLoadingSpinner(controller);
+
         // get the response from the API
         late final Map<String, dynamic>? response;
         try {
@@ -142,6 +147,10 @@ END:VCARD
             Functions.escapeJS(val?.toString() ?? 'empty');
 
         final js = """
+          // Remove loading spinner
+          const loaderToRemove = document.getElementById('dataLoader');
+          if (loaderToRemove) loaderToRemove.remove();
+          
           document.getElementById("firstName").value = "${escape(data['first_name'])}";
           document.getElementById("lastName").value = "${escape(data['last_name'])}";
           document.getElementById("mobile").value = "${escape(data['mobile'])}";
