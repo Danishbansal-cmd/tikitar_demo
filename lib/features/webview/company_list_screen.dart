@@ -7,6 +7,7 @@ import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'dart:developer' as developer;
 
 import 'package:tikitar_demo/core/network/api_base.dart';
+import 'package:tikitar_demo/features/auth/clients_controller.dart';
 import 'package:tikitar_demo/features/auth/company_controller.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
@@ -49,11 +50,16 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
             _handleAddCompany(companyData: decodedData);
           },
         );
+
+        controller.addJavaScriptHandler(
+          handlerName: "fetchCompanyContacts",
+          callback: (args) {
+            // args[0] is finalPayload from JavaScript
+            _fetchCompanyContacts(companyId: int.tryParse(args[0]) ?? 0);
+          },
+        );
       },
       onLoadStop: (controller, url) async {
-        // ❌❌❌ needs to fix
-        // when user clicks on the view button to make the dialog appear
-        // it starts spinning
         // ✅ Show loading spinner immediately
         await showLoadingSpinner(controller);
 
@@ -102,17 +108,17 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
         if (company == null) continue; // Skip if null
 
         final rank = i + 1;
-        final name = Functions.escapeJS(company['name'].toString());
+        final companyName = Functions.escapeJS(company['name'].toString());
         final id = company['id'];
 
         companyRowJS += """
           <tr>
             <td>$rank</td>
-            <td>$name</td>
+            <td>$companyName</td>
             <td>
               <a class="popup-link" 
               href="#viewcompanydetails"
-              data-id="$id" data-name="$name">
+              data-id="$id" data-companyName="$companyName">
                 <span class="material-symbols-outlined">
                   visibility
                 </span>
@@ -143,6 +149,31 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
 
         var html = `$companyRowJS`;
         table.insertAdjacentHTML('beforeend', html);
+
+        // Reinitialize Magnific Popup on new elements
+        if (window.jQuery) {
+          window.jQuery('.popup-link').magnificPopup({
+            type: 'inline',
+            midClick: true
+          });
+        }
+
+        // Attach click handler for company details
+        document.querySelectorAll(".popup-link").forEach(function(link) {
+          link.addEventListener("click", function(e) {
+            var companyId = this.getAttribute("data-id");
+            var companyName = this.getAttribute("data-companyName");
+
+            // Update popup content
+            var popupTitle = document.querySelector("#viewcompanydetails h5");
+            if (popupTitle) popupTitle.textContent = companyName;
+
+            // Call Flutter to fetch contact data
+            if (window.flutter_inappwebview) {
+              window.flutter_inappwebview.callHandler('fetchCompanyContacts', companyId);
+            }
+          });
+        });
       """;
 
       await _controller?.evaluateJavascript(source: fullJs);
@@ -151,6 +182,86 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
         "Error fetching or injecting Companies data: $e",
         name: "CompanyListScreen",
       );
+    }
+  }
+
+  Future<void> _fetchCompanyContacts({required int companyId}) async {
+    final response = await ClientsController.getUserContactPersonsData(
+      companyId,
+      userId!,
+    );
+    developer.log(
+      "_fetchCompanyContacts response ${response}",
+      name: "CompanyListScreen",
+    );
+
+    final bool status = response['status'] == true;
+    final message = response['message'] ?? 'Unknown error';
+
+    String tableRowJS = '''
+      <tr>
+        <td>Name</td>
+        <td>Phone</td>
+        <td>Email</td>
+        <td>Job title</td>
+      </tr>
+    ''';
+
+    // makes sure the widget is mounted or in the context
+    if (!mounted) return;
+
+    if (status) {
+      final companyContactPersonsData = response['data'] as List;
+
+      if (companyContactPersonsData.isNotEmpty) {
+        for (int i = 0; i < companyContactPersonsData.length; i++) {
+          final company = companyContactPersonsData[i];
+          if (company == null) continue; // skip if null
+
+          final contactPersonName = Functions.escapeJS(
+            company['contact_person'] ?? '',
+          );
+          final contactPersonEmail = Functions.escapeJS(
+            company['contact_email'],
+          );
+          final contactPersonPhone = Functions.escapeJS(
+            company['contact_phone'],
+          );
+          final jobTitle = Functions.escapeJS(company['job_title']);
+
+          tableRowJS += """
+            <tr>
+              <td>$contactPersonName</td>
+              <td>$contactPersonPhone</td>
+              <td>$contactPersonEmail</td>
+              <td>$jobTitle</td>
+            </tr>
+          """;
+        }
+        await _controller?.evaluateJavascript(
+          source: """
+            var companyContactPersonTable = document.getElementById('componytable');
+            var rows = companyContactPersonTable.querySelectorAll('tr');
+            for (let i = rows.length - 1; i > -1; i--) {
+              table.deleteRow(i);
+            }
+
+            var html = `$tableRowJS`;
+            companyContactPersonTable.insertAdjacentHTML('beforeend', html);
+          """,
+        );
+      }
+    } else {
+      await _controller?.evaluateJavascript(
+        source: """
+          var companyContactPersonTable = document.querySelector('.componytable');
+          if (companyContactPersonTable) {
+            const html = `<tr><td colspan="5" style="text-align:left;">No contact person found</td></tr>`;
+            companyContactPersonTable.innerHTML = html;
+          }
+        """,
+      );
+
     }
   }
 

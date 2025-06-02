@@ -313,7 +313,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
       var currentRoute = "$currentRoute";
 
       // selecting the tag with class ".profile-img" and storing it
-      let profileImageSelector = document.querySelector(".profile-img");
+      var profileImageSelector = document.querySelector(".profile-img");
       
       // Adding the Listener for the "profileImageSelector"
       profileImageSelector?.addEventListener("click", function() {
@@ -457,7 +457,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
     required String formattedDate,
   }) {
     return """
-      let interval = setInterval(function() {
+      var interval = setInterval(function() {
         const nameSpan = document.querySelector(".profile-name");
         const dateDiv = document.querySelector(".profile-date");
 
