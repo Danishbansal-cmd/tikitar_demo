@@ -569,47 +569,20 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   Future<void> _submitMeetingData(Map<String, dynamic> formData) async {
-    try {
-      // Validate required fields
-      final requiredFields = {
-        "client_id": "Company is required",
-        "contact_person_email": "Contact Person Email is required",
-        "contact_person_mobile": "Contact Person Mobile is required",
-        "comments": "Comments are required",
-      };
+    // Validate required fields
+    final requiredFields = {
+      "client_id": "Company is required",
+      "contact_person_email": "Contact Person Email is required",
+      "contact_person_mobile": "Contact Person Mobile is required",
+      "comments": "Comments are required",
+    };
 
-      for (var entry in requiredFields.entries) {
-        final value = formData[entry.key];
-        if (value == null || value.toString().trim().isEmpty) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(entry.value)));
-          await _controller?.evaluateJavascript(
-            source: '''
-              // reset the form submitting button
-              resetSubmitButton();
-            ''',
-          );
-          return;
-        }
-      }
-
-      // Check and request location permission
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      // makes sure the widget is mounted or in the context
-      if (!mounted) return;
-
-      developer.log("formData $formData", name: "TaskScreen");
-
-      if (permission == LocationPermission.deniedForever ||
-          permission == LocationPermission.denied) {
+    for (var entry in requiredFields.entries) {
+      final value = formData[entry.key];
+      if (value == null || value.toString().trim().isEmpty) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("Location permission denied")));
+        ).showSnackBar(SnackBar(content: Text(entry.value)));
         await _controller?.evaluateJavascript(
           source: '''
             // reset the form submitting button
@@ -618,50 +591,75 @@ class _TaskScreenState extends State<TaskScreen> {
         );
         return;
       }
+    }
 
-      // Get current location
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+    // Check and request location permission
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    // makes sure the widget is mounted or in the context
+    if (!mounted) return;
+    developer.log("formData $formData", name: "TaskScreen");
+
+    if (permission == LocationPermission.deniedForever ||
+        permission == LocationPermission.denied) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Location permission denied")));
+      await _controller?.evaluateJavascript(
+        source: '''
+          // reset the form submitting button
+          resetSubmitButton();
+        ''',
       );
+      return;
+    }
 
-      final enrichedFormData = {
-        ...formData,
-        "latitude": position.latitude,
-        "longitude": position.longitude,
-      };
+    // Get current location
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
 
-      // makes sure the widget is mounted or in the context
-      if (!mounted) return;
+    final enrichedFormData = {
+      ...formData,
+      "latitude": position.latitude,
+      "longitude": position.longitude,
+    };
 
-      if (_visitedCardFile == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Please upload a visiting card before submitting.")),
-        );
-        await _controller?.evaluateJavascript(source: 'resetSubmitButton();');
-        return;
-      }
+    // makes sure the widget is mounted or in the context
+    if (!mounted) return;
 
-      final now = DateTime.now();
-      final formattedDate =
-          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-
-      // Submit meeting with visited card file (if selected)
-      await MeetingsController.submitMeeting(
-        clientId: enrichedFormData["client_id"],
-        userId: userId.toString(),
-        email: enrichedFormData["contact_person_email"],
-        mobile: enrichedFormData["contact_person_mobile"],
-        comments: enrichedFormData["comments"],
-        latitude: enrichedFormData["latitude"].toString(),
-        longitude: enrichedFormData["longitude"].toString(),
-        meeting_date: formattedDate,
-        visitedData: enrichedFormData['visited'],
-        visitedCardFile: _visitedCardFile, // Include the visited card file here
+    if (_visitedCardFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please upload a visiting card before submitting.")),
       );
+      await _controller?.evaluateJavascript(source: 'resetSubmitButton();');
+      return;
+    }
 
-      // makes sure the widget is mounted or in the context
-      if (!mounted) return;
+    final now = DateTime.now();
+    final formattedDate =
+        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
+    // Submit meeting with visited card file (if selected)
+    final response = await MeetingsController.submitMeeting(
+      clientId: enrichedFormData["client_id"],
+      userId: userId.toString(),
+      email: enrichedFormData["contact_person_email"],
+      mobile: enrichedFormData["contact_person_mobile"],
+      comments: enrichedFormData["comments"],
+      latitude: enrichedFormData["latitude"].toString(),
+      longitude: enrichedFormData["longitude"].toString(),
+      meeting_date: formattedDate,
+      visitedData: enrichedFormData['visited'],
+      visitedCardFile: _visitedCardFile!, // Include the visited card file here
+    );
+
+    // makes sure the widget is mounted or in the context
+    if (!mounted) return;
+    if(response['status'] == true){
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Meeting submitted successfully!")),
       );
@@ -707,24 +705,16 @@ class _TaskScreenState extends State<TaskScreen> {
           $clearFormJS
         ''',
       );
-    } catch (e) {
-      developer.log(
-        "Error fetching location or submitting meeting: $e",
-        name: "TaskScreen",
-      );
-
-      // makes sure the widget is mounted or in the context
-      if (!mounted) return;
-
+    }else{
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Failed to submit meeting")));
+      ).showSnackBar(SnackBar(content: Text("Failed to submit meeting, Try Again!")));
       await _controller?.evaluateJavascript(
         source: '''
           // reset the form submitting button
           resetSubmitButton();
         ''',
-      );
+      );  
     }
   }
 
