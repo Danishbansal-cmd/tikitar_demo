@@ -21,7 +21,6 @@ class TaskScreen extends StatefulWidget {
 
 class _TaskScreenState extends State<TaskScreen> {
   InAppWebViewController? _controller;
-  List<Map<String, dynamic>> fields = [];
   File? _visitedCardFile; // Variable to hold the selected file
   String categoryOptionsHTML = ''; // store the categoryOptions
   String stateOptionsHTML = ''; // store the stateOptions
@@ -42,16 +41,6 @@ class _TaskScreenState extends State<TaskScreen> {
       title: "Task",
       onWebViewCreated: (controller) {
         _controller = controller;
-
-        // Add JavaScript handler for clearing form and visiting card
-        controller.addJavaScriptHandler(
-          handlerName: 'clearFormAndVisitingCard',
-          callback: (args) async {
-            setState(() {
-              _visitedCardFile = null; // Clear the file reference
-            });
-          },
-        );
 
         _controller?.addJavaScriptHandler(
           handlerName: 'uploadVisitingCard',
@@ -379,15 +368,6 @@ class _TaskScreenState extends State<TaskScreen> {
         // will call this handler or function that will handle the 
         // submit meeting data
         window.flutter_inappwebview.callHandler('mainFormSubmit', data);
-
-        // After submission, notify Flutter to clear the form and visiting card
-        if (window.flutter_inappwebview) {
-          window.flutter_inappwebview.callHandler('clearFormAndVisitingCard');
-        } else if (window.ReactNativeWebView) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'clearFormAndVisitingCard' }));
-        } else if (window.Flutter) {
-          window.Flutter.postMessage(JSON.stringify({ type: 'clearFormAndVisitingCard' }));
-        }
       });
     }
 
@@ -496,6 +476,14 @@ class _TaskScreenState extends State<TaskScreen> {
         );
 
         if (pickedFile == null) return; // User canceled the image picker
+        developer.log(
+          "pickedFile.path: ${pickedFile.path}",
+          name: "TaskScreen",
+        );
+        developer.log(
+          "pickedFile.name: ${pickedFile.name}",
+          name: "TaskScreen",
+        );
 
         selectedFile = File(pickedFile.path);
         fileName = pickedFile.name;
@@ -511,7 +499,10 @@ class _TaskScreenState extends State<TaskScreen> {
         final file = result.files.first;
 
         if (!allowedFormats.contains(file.extension?.toLowerCase())) {
-          throw PlatformException(code: 'INVALID_FORMAT', message: 'Unsupported file format.');
+          throw PlatformException(
+            code: 'INVALID_FORMAT',
+            message: 'Unsupported file format.',
+          );
         }
 
         selectedFile = File(file.path!);
@@ -639,7 +630,16 @@ class _TaskScreenState extends State<TaskScreen> {
         "longitude": position.longitude,
       };
 
-      developer.log("visitedCardFile: $_visitedCardFile", name: "TaskScreen");
+      // makes sure the widget is mounted or in the context
+      if (!mounted) return;
+
+      if (_visitedCardFile == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Please upload a visiting card before submitting.")),
+        );
+        await _controller?.evaluateJavascript(source: 'resetSubmitButton();');
+        return;
+      }
 
       final now = DateTime.now();
       final formattedDate =
@@ -666,15 +666,13 @@ class _TaskScreenState extends State<TaskScreen> {
         SnackBar(content: Text("Meeting submitted successfully!")),
       );
 
-      // Clear the selected file in Flutter
-      setState(() {
-        _visitedCardFile = null;
-      });
-
       // Clear form fields
       final clearFormJS = """
         // reset the form submitting button
         resetSubmitButton();
+
+        // Clear the selected file in Flutter
+        window.flutter_inappwebview.callHandler('clearVisitedCardFile');
 
         // first selecting the fields then resetting to default
         const companySelects = document.querySelectorAll('select.form-select[placeholder="Company Name"]');

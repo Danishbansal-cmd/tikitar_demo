@@ -22,8 +22,6 @@ class MeetingsController {
     if (token == null) {
       print("❌ Token not found.");
       throw Exception("Authentication token not found.");
-    } else {
-      print("✅ Meeting submitted with token: $token");
     }
 
     final payload = {
@@ -45,7 +43,7 @@ class MeetingsController {
         ..fields.addAll(payload);
 
       if (visitedCardFile != null) {
-        final file = await http.MultipartFile.fromPath('visited_card', visitedCardFile.path);
+        final file = await http.MultipartFile.fromPath('visiting_card', visitedCardFile.path);
         request.files.add(file);
       }
 
