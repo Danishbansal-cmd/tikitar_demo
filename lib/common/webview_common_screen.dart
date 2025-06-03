@@ -509,22 +509,24 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
   // to the first Letter of the userName
   String _changeUserLogo({String? firstLetter}) {
     return """
-    profileImageSelector.innerHTML = `
-      <span style="
-        display: inline-block;
-        width: 40px;
-        height: 40px;
-        background-color: #fecc00;
-        color: white;
-        font-weight: bold;
-        font-size: 32px;
-        border-radius: 50%;
-        text-align: center;
-        line-height: 40px;
-      ">
-        $firstLetter
-      </span>
-    `;
+    if(profileImageSelector){
+      profileImageSelector.innerHTML = `
+        <span style="
+          display: inline-block;
+          width: 40px;
+          height: 40px;
+          background-color: #fecc00;
+          color: white;
+          font-weight: bold;
+          font-size: 32px;
+          border-radius: 50%;
+          text-align: center;
+          line-height: 40px;
+        ">
+          $firstLetter
+        </span>
+      `;
+    }
   """;
   }
 }

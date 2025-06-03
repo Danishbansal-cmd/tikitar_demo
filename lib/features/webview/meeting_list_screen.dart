@@ -34,13 +34,13 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
         await fetchAndInjectMeetings(
           controller: controller,
           pageName: "MeetingListScreen",
-          userId: userId
+          userId: userId,
         );
       },
     );
   }
 
-    // Get userData from SharedPreferences, to finally get the userId
+  // Get userData from SharedPreferences, to finally get the userId
   Future<void> _initializeMeetingListScreen() async {
     final userData = await DataStorage.getUserData();
     if (userData != null) {
@@ -53,7 +53,8 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
 }
 
 Future<void> showLoadingSpinner(InAppWebViewController controller) async {
-  await controller.evaluateJavascript(source: """
+  await controller.evaluateJavascript(
+    source: """
     if (!document.getElementById('dataLoader')) {
       const loader = document.createElement('div');
       loader.id = 'dataLoader';
@@ -80,14 +81,17 @@ Future<void> showLoadingSpinner(InAppWebViewController controller) async {
 
       document.body.appendChild(loader);
     }
-  """);
+  """,
+  );
 }
-
 
 Future<void> fetchAndInjectMeetings({
   required InAppWebViewController controller,
   String? pageName,
   int? userId,
+  String? filter,
+  String? fromDatePassed,
+  String? toDatePassed,
 }) async {
   String tableRowsJS = '''
     <tr>
@@ -101,25 +105,68 @@ Future<void> fetchAndInjectMeetings({
     // ✅ Show loading spinner immediately
     await showLoadingSpinner(controller);
 
-    developer.log("User ID being passed: $userId", name: "DashboardScreen");
-    final response = await MeetingsController.userBasedMeetings(userId!);
-    final List<dynamic> meetingsList = response['data'] ?? [];
+    developer.log("User ID being passed: $userId", name: "$pageName");
+    developer.log("Filter being passed: $filter", name: "$pageName");
+    developer.log("fromDatePassed being passed: $fromDatePassed", name: "$pageName");
+    developer.log("toDatePassed being passed: $toDatePassed", name: "$pageName");
 
-    developer.log("Meeting list response: $meetingsList", name: "DashboardScreen");
+    final response = await MeetingsController.userBasedMeetings(userId!);
+    final List<dynamic> fullMeetingsList = response['data'] ?? [];
+
+    // 🧠 Local filtering based on `filter` string
+    DateTime fromDate;
+    DateTime now = DateTime.now();
+    switch (filter) {
+      case "Last 1 Month":
+        fromDate = now.subtract(const Duration(days: 30));
+        break;
+      case "Last 1 Year":
+        fromDate = now.subtract(const Duration(days: 365));
+        break;
+      case "All Data":
+        fromDate = DateTime(2000);
+        break;
+      case "Custom Date":
+        fromDate = DateTime.parse(convertDate(fromDatePassed!));
+        now = DateTime.parse(convertDate(toDatePassed!));
+        break;
+      default: // Last 7 Days
+        fromDate = now.subtract(const Duration(days: 7));
+        break;
+    }
+
+    // 📅 Filter locally
+    final filteredMeetings =
+        fullMeetingsList.where((meeting) {
+          try {
+            final rawDate = meeting['meeting_date'] ?? '';
+            final meetingDate = DateTime.parse(rawDate);
+            return meetingDate.isAfter(fromDate) && meetingDate.isBefore(now) ||
+                meetingDate.isAtSameMomentAs(fromDate) || meetingDate.isAtSameMomentAs(now);
+          } catch (_) {
+            return false;
+          }
+        }).toList();
+
+    developer.log(
+      "filteredMeetings Meeting list response: $filteredMeetings",
+      name: "$pageName",
+    );
 
     String twoDigits(int n) => n.toString().padLeft(2, '0');
 
-    for (int i = 0; i < meetingsList.length; i++) {
-      final meeting = meetingsList[i];
+    for (int i = 0; i < filteredMeetings.length; i++) {
+      final meeting = filteredMeetings[i];
       if (meeting == null) continue; // Skip if null
       final rank = i + 1;
       // for date, escape new lines and quotes
       final rawDate = meeting['meeting_date'] ?? '';
       final contactPersonMobile = meeting['contact_person_mobile'] ?? '';
       final contactPersonEmail = meeting['contact_person_email'] ?? '';
-      final clientName = meeting['client'] != null
-        ? Functions.escapeJS(meeting['client']['name'] ?? '')
-        : 'N/A';
+      final clientName =
+          meeting['client'] != null
+              ? Functions.escapeJS(meeting['client']['name'] ?? '')
+              : 'N/A';
       String formattedDate = '';
       try {
         final parsedDate = DateTime.parse(rawDate);
@@ -134,7 +181,9 @@ Future<void> fetchAndInjectMeetings({
 
       // to insert the link of the file that is being submitted during the meeting
       // it contains the link
-      final visitingCardUrl = Functions.escapeJS(meeting['visiting_card'] ?? '');
+      final visitingCardUrl = Functions.escapeJS(
+        meeting['visiting_card'] ?? '',
+      );
 
       tableRowsJS += """
           <tr>
@@ -177,17 +226,16 @@ Future<void> injectTableDataWithComments({
   String? pageName,
 }) async {
   try {
-final fullJS = """
+    final fullJS = """
   // Remove loading spinner
-  const loaderToRemove = document.getElementById('dataLoader');
+  var loaderToRemove = document.getElementById('dataLoader');
   if (loaderToRemove) loaderToRemove.remove();
   
-  const table = document.querySelector('.reporttable');
-  const rows = table.querySelectorAll('tr');
-  for (let i = rows.length - 1; i > -1; i--) {
-    table.deleteRow(i);
+  var table = document.querySelector('.reporttable');
+  if (table) {
+    table.innerHTML = ''; // cleanly clear all rows
+    table.insertAdjacentHTML('beforeend', `$tableRowsDataJS`);
   }
-  table.insertAdjacentHTML('beforeend', `$tableRowsDataJS`);
 
   if (!document.getElementById('commentModal')) {
     const modal = document.createElement('div');
@@ -263,4 +311,16 @@ final fullJS = """
       name: "$pageName",
     );
   }
+}
+
+String convertDate(String input) {
+  // Expects input like "01/15/2018"
+  final parts = input.split('/');
+  if (parts.length == 3) {
+    final month = parts[0].padLeft(2, '0');
+    final day = parts[1].padLeft(2, '0');
+    final year = parts[2];
+    return '$year-$month-$day'; // Dart-compatible format
+  }
+  throw FormatException('Invalid date format: $input');
 }
