@@ -227,82 +227,82 @@ Future<void> injectTableDataWithComments({
 }) async {
   try {
     final fullJS = """
-  // Remove loading spinner
-  var loaderToRemove = document.getElementById('dataLoader');
-  if (loaderToRemove) loaderToRemove.remove();
-  
-  var table = document.querySelector('.reporttable');
-  if (table) {
-    table.innerHTML = ''; // cleanly clear all rows
-    table.insertAdjacentHTML('beforeend', `$tableRowsDataJS`);
-  }
-
-  if (!document.getElementById('commentModal')) {
-    const modal = document.createElement('div');
-    modal.id = 'commentModal';
-    modal.style.position = 'fixed';
-    modal.style.top = '0';
-    modal.style.left = '0';
-    modal.style.width = '100%';
-    modal.style.height = '100%';
-    modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
-    modal.style.display = 'none';
-    modal.style.justifyContent = 'center';
-    modal.style.alignItems = 'center';
-    modal.style.zIndex = '1000';
-    modal.innerHTML = \`
-      <div style="background:#fff; padding:25px 15px; border-radius:8px; max-width:90%; max-height:80%; overflow:auto; position:relative;">
-        <span id="closeModal" style="
-          position: absolute;
-          top: 0px;
-          right: 0px;
-          cursor: pointer;
-          font-size: 32px;
-          padding: 8px 20px;
-          background-color: #fecc00;
-          color: #fff;
-          border-radius: 4px;
-          font-weight: bold;
-          transition: background-color 0.3s ease;
-        ">&times;</span>
-        <div style="font-weight: bold; font-size: 18px; margin-bottom: 10px;">Meeting Details</div>
-        <div id="commentContent" style="white-space: normal; margin-bottom: 20px; line-height: 1.5;"></div>
-        <button id="openPdfBtn" style="padding: 10px 15px; background-color: #007BFF; color: white; border: none; border-radius: 5px;">View Attachment</button>
-      </div>
-    \`;
-    document.body.appendChild(modal);
-    document.getElementById('closeModal').onclick = () => {
-      modal.style.display = 'none';
+    // Remove loading spinner
+    var loaderToRemove = document.getElementById('dataLoader');
+    if (loaderToRemove) loaderToRemove.remove();
+    
+    var table = document.querySelector('.reporttable');
+    if (table) {
+      table.innerHTML = ''; // cleanly clear all rows
+      table.insertAdjacentHTML('beforeend', `$tableRowsDataJS`);
     }
-  }
 
-  document.querySelectorAll('.chat-icon').forEach(el => {
-    el.addEventListener('click', function(e) {
-      e.preventDefault();
-      const clientName = this.closest('tr').children[1].innerText;
-      const date = this.closest('tr').children[2].innerText;
-      const contactEmail = this.getAttribute('data-contact-person-email');
-      const contactMobile = this.getAttribute('data-contact-person-mobile');
-      const comment = this.getAttribute('data-comment');
-      const pdfUrl = this.getAttribute('data-pdf');
-
-      const contentHtml = \`
-        <div><b>Client Name:</b> \${clientName}</div>
-        <div><b>Meeting Date:</b> \${date}</div>
-        <div><b>Contact Person Email:</b> \${contactEmail}</div>
-        <div><b>Contact Person Mobile:</b> \${contactMobile}</div>
-        <div><b>Comments:</b> \${comment}</div>
+    if (!document.getElementById('commentModal')) {
+      const modal = document.createElement('div');
+      modal.id = 'commentModal';
+      modal.style.position = 'fixed';
+      modal.style.top = '0';
+      modal.style.left = '0';
+      modal.style.width = '100%';
+      modal.style.height = '100%';
+      modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+      modal.style.display = 'none';
+      modal.style.justifyContent = 'center';
+      modal.style.alignItems = 'center';
+      modal.style.zIndex = '1000';
+      modal.innerHTML = \`
+        <div style="background:#fff; padding:25px 15px; border-radius:8px; max-width:90%; max-height:80%; overflow:auto; position:relative;">
+          <span id="closeModal" style="
+            position: absolute;
+            top: 0px;
+            right: 0px;
+            cursor: pointer;
+            font-size: 32px;
+            padding: 8px 20px;
+            background-color: #fecc00;
+            color: #fff;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+          ">&times;</span>
+          <div style="font-weight: bold; font-size: 18px; margin-bottom: 10px;">Meeting Details</div>
+          <div id="commentContent" style="white-space: normal; margin-bottom: 20px; line-height: 1.5;"></div>
+          <button id="openPdfBtn" style="padding: 10px 15px; background-color: #007BFF; color: white; border: none; border-radius: 5px;">View Attachment</button>
+        </div>
       \`;
+      document.body.appendChild(modal);
+      document.getElementById('closeModal').onclick = () => {
+        modal.style.display = 'none';
+      }
+    }
 
-      document.getElementById('commentContent').innerHTML = contentHtml;
-      document.getElementById('commentModal').style.display = 'flex';
+    document.querySelectorAll('.chat-icon').forEach(el => {
+      el.addEventListener('click', function(e) {
+        e.preventDefault();
+        const clientName = this.closest('tr').children[1].innerText;
+        const date = this.closest('tr').children[2].innerText;
+        const contactEmail = this.getAttribute('data-contact-person-email');
+        const contactMobile = this.getAttribute('data-contact-person-mobile');
+        const comment = this.getAttribute('data-comment');
+        const pdfUrl = this.getAttribute('data-pdf');
 
-      document.getElementById('openPdfBtn').onclick = () => {
-        window.flutter_inappwebview.callHandler('openPdfExternally', pdfUrl);
-      };
+        const contentHtml = \`
+          <div><b>Client Name:</b> \${clientName}</div>
+          <div><b>Meeting Date:</b> \${date}</div>
+          <div><b>Contact Person Email:</b> \${contactEmail}</div>
+          <div><b>Contact Person Mobile:</b> \${contactMobile}</div>
+          <div><b>Comments:</b> \${comment}</div>
+        \`;
+
+        document.getElementById('commentContent').innerHTML = contentHtml;
+        document.getElementById('commentModal').style.display = 'flex';
+
+        document.getElementById('openPdfBtn').onclick = () => {
+          window.flutter_inappwebview.callHandler('openPdfExternally', pdfUrl);
+        };
+      });
     });
-  });
-""";
+  """;
 
     await controller.evaluateJavascript(source: fullJS);
   } catch (e) {

@@ -127,12 +127,20 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
           </tr>
         """;
       }
-      developer.log("companyRowJS $companyRowJS", name: "CompanyListScreen");
+      // developer.log("companyRowJS $companyRowJS", name: "CompanyListScreen");
     } else {
-      developer.log(
-        "fetchCompaniesAndInject un-successfully ${response['data']}",
-        name: "CompanyListScreen",
+      if (!mounted) return;
+
+      // Handle the error here, e.g., show a message to the user
+      // Show a snackbar or dialog with the error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            response['message'] ?? 'Try Again Later, No Company Found!',
+          ),
+        ),
       );
+      return;
     }
 
     _injectCompanies(companyRowJS: companyRowJS);
@@ -186,6 +194,15 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
   }
 
   Future<void> _fetchCompanyContacts({required int companyId}) async {
+    await _controller?.evaluateJavascript(
+      source: """
+        // adding the spinner icon to show the loading
+        var companyContactPersonTable = document.querySelector('.componytable');
+        if (companyContactPersonTable) {
+          companyContactPersonTable.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+        }
+      """,
+    );
     final response = await ClientsController.getUserContactPersonsData(
       companyId,
       userId!,
@@ -197,6 +214,9 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
 
     final bool status = response['status'] == true;
     final message = response['message'] ?? 'Unknown error';
+
+    developer.log("status: $status", name: "CompanyListScreen");
+    developer.log("message: $message", name: "CompanyListScreen");
 
     String tableRowJS = '''
       <tr>
@@ -214,6 +234,7 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
       final companyContactPersonsData = response['data'] as List;
 
       if (companyContactPersonsData.isNotEmpty) {
+        developer.log("i m here");
         for (int i = 0; i < companyContactPersonsData.length; i++) {
           final company = companyContactPersonsData[i];
           if (company == null) continue; // skip if null
@@ -238,16 +259,14 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
             </tr>
           """;
         }
+        developer.log("tableRowJS: $tableRowJS", name: "CompanyListScreen");
         await _controller?.evaluateJavascript(
           source: """
-            var companyContactPersonTable = document.getElementById('componytable');
-            var rows = companyContactPersonTable.querySelectorAll('tr');
-            for (let i = rows.length - 1; i > -1; i--) {
-              table.deleteRow(i);
+            var companyContactPersonTable = document.querySelector('.componytable');
+            if (companyContactPersonTable) {
+              companyContactPersonTable.innerHTML = ''; // cleanly clear all rows
+              companyContactPersonTable.insertAdjacentHTML('beforeend', `$tableRowJS`);
             }
-
-            var html = `$tableRowJS`;
-            companyContactPersonTable.insertAdjacentHTML('beforeend', html);
           """,
         );
       }
@@ -261,7 +280,6 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
           }
         """,
       );
-
     }
   }
 
