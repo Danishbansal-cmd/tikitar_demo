@@ -26,6 +26,16 @@ class CompanyController {
     }
   }
 
+  static Future<Map<String, dynamic>> saveCompanyAlongContactPerson(Map<String, dynamic> companyAlongContactPerson) async {
+    try {
+      final response = await ApiBase.post('/clients/savethecompany', companyAlongContactPerson);
+
+      return {"status": response['status'] || true, "message": response['message']};
+    } catch (e) {
+      return {"status": false, "message": "$e"};
+    }
+  }
+
   static Future<Map<String, dynamic>> getOnlyCompanies(int userId) async {
     try {
       final response = await ApiBase.get("/clients/getcompanies/$userId");

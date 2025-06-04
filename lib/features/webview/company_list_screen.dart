@@ -22,12 +22,18 @@ class CompanyListScreen extends StatefulWidget {
 class _CompanyListScreenState extends State<CompanyListScreen> {
   InAppWebViewController? _controller;
   int? userId;
+  String categoryOptionsHTML = '';
+  String stateOptionsHTML = '';
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     _initializeCompanyListScreen();
+
+    // fetch all the static data
+    // and also inject it into the view
+    _fetchStoredStaticData();
   }
 
   @override
@@ -47,6 +53,21 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
               name: 'CompanyListScreen',
             );
             final decodedData = jsonDecode(args[0]);
+
+            // Check if it's an error object from JS
+            if (decodedData is Map && decodedData['error'] == true) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    decodedData['message'] ??
+                        'Please fill all required fields.',
+                  ),
+                ),
+              );
+              return;
+            }
+
             _handleAddCompany(companyData: decodedData);
           },
         );
@@ -167,7 +188,7 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
         }
 
         // Attach click handler for company details
-        document.querySelectorAll(".popup-link").forEach(function(link) {
+        document.querySelectorAll(".popup-link[href='#viewcompanydetails']").forEach(function(link) {
           link.addEventListener("click", function(e) {
             var companyId = this.getAttribute("data-id");
             var companyName = this.getAttribute("data-companyName");
@@ -291,7 +312,7 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
         if (loaderToRemove) loaderToRemove.remove();        
         
         const fieldIds = [
-          'company', 'city', 'zip', 'state',
+          'company', 'city', 'zip', 'branchname', 'addressline',
           'fullname', 'mobile', 'whatsappnumber',
           'email', 'jobtitle'
         ];
@@ -310,31 +331,93 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
         
         function setupButtonListener() {
           if (saveBtn) {
+            // mobile input validation
+            var mobileInput = document.getElementById('mobile');
+            if (mobileInput && !mobileInput.dataset.bound) {
+              mobileInput.addEventListener('input', e => {
+                e.target.value = e.target.value.replace(/[^0-9]/g, '').substring(0, 10);
+              });
+              mobileInput.dataset.bound = 'true';
+            }
+
+            // email input validation
+            var emailInput = document.getElementById('email');
+            if (emailInput && !emailInput.dataset.bound) {
+              emailInput.addEventListener('input', function(e) {
+                var value = e.target.value;
+                var isValid = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+\\\$/.test(value);
+                if (!isValid && value !== '') {
+                  emailInput.setCustomValidity('Please enter a valid email address');
+                } else {
+                  emailInput.setCustomValidity('');
+                }
+              });
+              emailInput.dataset.bound = 'true';
+            }
+
+            // whatsappnumber input validation
+            var whatsappnumberInput = document.getElementById('whatsappnumber');
+            if (whatsappnumberInput && !whatsappnumberInput.dataset.bound) {
+              whatsappnumberInput.addEventListener('input', e => {
+                e.target.value = e.target.value.replace(/[^0-9]/g, '').substring(0, 10);
+              });
+              whatsappnumberInput.dataset.bound = 'true';
+            }
+
             saveBtn.onclick = function(event) {
               event.preventDefault();
+
               let allFilled = true;
+              const missingFields = [];
+
               fieldIds.forEach(id => {
                 const field = document.getElementById(id);
                 if (field && field.value.trim() === '') {
                   allFilled = false;
+                  missingFields.push(id);
                 }
               });
-              if (allFilled) {
-                alert('Please fill all the fields');
-              } else {
-                // Proceed with form submission if needed
-                // Replace the save button content with a spinner indicator and disable it
-                saveBtn.disabled = true;
-                saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
 
-                const finalPayload = fieldIds.reduce((acc, id) => {
-                  acc[id] = document.getElementById(id)?.value || '';
-                  return acc;
-                }, {});
-
-                // Send the data to the Flutter side
-                window.flutter_inappwebview.callHandler("HANDLE_ADD_COMPANY_DATA", JSON.stringify(finalPayload));
+              const categoryValue = document.getElementById("category")?.value.trim() || '';
+              var stateElement = document.getElementById("state");
+              var stateValue = stateElement.options[stateElement.selectedIndex].text;
+              
+              console.log("selected Category: ", categoryValue);
+              if (!categoryValue || categoryValue === 'Select Category') {
+                allFilled = false;
+                missingFields.push('category');
               }
+
+              console.log("selected state: ", stateValue);
+              if (!stateValue || stateValue === 'Select State') {
+                allFilled = false;
+                missingFields.push('state');
+              }
+
+              if (!allFilled) {
+                // Send error to Flutter and stop execution
+                window.flutter_inappwebview.callHandler("HANDLE_ADD_COMPANY_DATA", JSON.stringify({
+                  error: true,
+                  message: "Please fill all required fields: " + missingFields.join(', ')
+                }));
+                return;
+              }
+              
+              // Proceed with form submission if needed
+              // Replace the save button content with a spinner indicator and disable it
+              saveBtn.disabled = true;
+              saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+
+              const finalPayload = fieldIds.reduce((acc, id) => {
+                acc[id] = document.getElementById(id)?.value || '';
+                return acc;
+              }, {});
+              finalPayload["category"] = categoryValue;
+              finalPayload["state"] = stateValue;
+
+              // Send the data to the Flutter side
+              window.flutter_inappwebview.callHandler("HANDLE_ADD_COMPANY_DATA", JSON.stringify(finalPayload));
+              
             };
           }
         }
@@ -348,52 +431,72 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
             setupButtonListener();
           }
         }, 300); // check every 300ms
+
+
+        const safeCategoryHTML = ${jsonEncode(categoryOptionsHTML)};
+        // Add click listener to .addcomp
+        document.querySelector('.addcomp')?.addEventListener('click', () => {
+          const interval = setInterval(() => {
+            console.log("Checking for #category...");
+            const categoryElement = document.getElementById("category");
+            if (categoryElement) {
+              categoryElement.innerHTML = safeCategoryHTML;
+              clearInterval(interval);
+            }
+          }, 300);
+
+          
+          var stateElementSelectData = ${jsonEncode(stateOptionsHTML)};
+          const intervalSecond = setInterval(function() {
+            console.log("Checking for #state...");
+            var stateElement = document.getElementById("state");
+            if(stateElement){
+              stateElement.innerHTML = stateElementSelectData;
+              clearInterval(intervalSecond);
+            }
+          }, 300);
+        });
       """,
     );
   }
 
-  Future<void> _handleAddCompany({Map<String, dynamic>? companyData}) async {
-    try {
-      // get all the fields and send to the api to create or add the company
-      final companyName = companyData?["company"];
+  Future<void> _handleAddCompany({
+    required Map<String, dynamic> companyData,
+  }) async {
+    // Call the API to change the password
+    final response = await CompanyController.saveCompanyAlongContactPerson({
+      'name': "${companyData['company']}",
+      'category_id': int.tryParse("${companyData['category']}"),
+      'branch_name': "${companyData['branchname']}",
+      'address_line1': "${companyData['addressline']}",
+      'city': "${companyData['city']}",
+      'state': "${companyData['state']}",
+      'zip': "${companyData['zip']}",
+      'contact_person': "${companyData['fullname']}",
+      'contact_email': "${companyData['email']}",
+      'contact_phone': "${companyData['mobile']}",
+      'job_title': "${companyData['jobtitle']}",
+      'whatsapp': "${companyData['whatsappnumber']}",
+    });
+    developer.log("response: $response", name: 'CompanyListScreen');
 
-      if (companyName != null) {
-        // Call the API to change the password
-        final response = await ApiBase.post('/companies', {
-          'name': "$companyName",
-          'description': "hahead",
-        });
-        //   'city': "",
-        //   'zip': "",
-        //   'state': "",
+    // makes sure the widget is mounted or in the context
+    if (!mounted) return;
 
-        //   // fields for clients data
-        //   'fullname': "",
-        //   'mobile': "",
-        //   'whatsupnumber': "",
-        //   'email': "",
-        //   'jobtitle': "",
-        // });
-
-        developer.log("response: $response", name: 'CompanyListScreen');
-
-        // if everything goes well it follows from here, shows snackbar and all
-
-        // makes sure the widget is mounted or in the context
-        if (!mounted) return;
-        // Handle the error here, e.g., show a message to the user
-        // Show a snackbar or dialog with the error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              response['message'] ?? 'Company Details Saved Successfully.',
-            ),
+    if (response['status']) {
+      // Handle the error here, e.g., show a message to the user
+      // Show a snackbar or dialog with the error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            response['message'] ?? 'Company Details Saved Successfully.',
           ),
-        );
+        ),
+      );
 
-        // clear the company and clients fields, after successfull saving details and remove the spinner
-        await _controller?.evaluateJavascript(
-          source: '''
+      // clear the company and clients fields, after successfull saving details and remove the spinner
+      await _controller?.evaluateJavascript(
+        source: '''
           resetCompanyForm();
           // Remove the spinner and enable the save button again
           saveBtn.disabled = false;
@@ -403,22 +506,15 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
             addCompanyFormCloseButton.click();
           }
         ''',
-        );
-      }
-    } catch (e) {
-      developer.log(
-        "Error handling Adding Company data: $e",
-        name: 'CompanyListScreen',
-        error: e,
       );
-
+    } else {
       // makes sure the widget is mounted or in the context
       if (!mounted) return;
       // Handle the error here, e.g., show a message to the user
       // Show a snackbar or dialog with the error message
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(response['message'] ?? 'Try Again Later.')),
+      );
 
       await _controller?.evaluateJavascript(
         source: '''
@@ -428,5 +524,36 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
         ''',
       );
     }
+  }
+
+  Future<void> _fetchStoredStaticData() async {
+    // Fetch categories first from sharedPreferences
+    final categories = await DataStorage.getCategoryOptionsData();
+    if (categories == null) return;
+
+    final categoriesData = jsonDecode(categories) as List<dynamic>;
+
+    categoryOptionsHTML = '<option selected>Select Category</option>';
+    for (var cat in categoriesData) {
+      final id = Functions.escapeJS(cat['id'].toString());
+      final name = Functions.escapeJS(cat['name'].toString());
+      categoryOptionsHTML += '<option value="$id">$name</option>';
+    }
+    developer.log(
+      "categoryOptionsHTML $categoryOptionsHTML",
+      name: "CompanyListScreen",
+    );
+
+    // Fetch states from sharedPreferences
+    final statesData = await DataStorage.getStateNames() as List<dynamic>;
+    if (statesData.isEmpty) return;
+
+    stateOptionsHTML = '<option selected>Select State</option>';
+    for (int i = 0; i < statesData.length; i++) {
+      final name = Functions.escapeJS(statesData[i].toString());
+      stateOptionsHTML +=
+          '<option value="${(i + 1).toString()}">$name</option>';
+    }
+    developer.log("stateOptionsHTML $stateOptionsHTML", name: "TaskScreen");
   }
 }

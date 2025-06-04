@@ -253,8 +253,7 @@ class _TaskScreenState extends State<TaskScreen> {
         const city = document.querySelector(".loc-city").value;
         const zip = document.querySelector(".loc-zip").value;
         const statesDropdown = document.getElementById("popup-states");
-        const statesDropdownValue = statesDropdown.value;
-        const selectedStateText = statesDropdown.options[statesDropdownValue].text;
+        const selectedStateText = statesDropdown.options[statesDropdown.selectedIndex].text;
         const category = parseInt(document.querySelector("#popup-category").value || "0");
         const address = document.querySelector(".address-line-1").value;
         const branch = document.querySelector(".branch-name").value;
@@ -263,7 +262,7 @@ class _TaskScreenState extends State<TaskScreen> {
       });
     });
 
-    // ✅ New Person Form Full Popup Button
+    // ✅ New Contact Person Form Full Popup Button
     const addContactPersonFieldsClasses = ['contact_person', 'contact_email', 'contact_phone', 'job_title', 'whatsapp'];
     document.querySelectorAll('.addmore')[1]?.addEventListener('click', function(e) {
       e.preventDefault();
@@ -296,6 +295,17 @@ class _TaskScreenState extends State<TaskScreen> {
         this.value = this.value.replace(/[^0-9]/g, '').substring(0, 10);
       };
       observePhoneInputs();
+
+      // whatsapp input validation
+      const whatsappHandler = e => {
+        e.target.value = e.target.value.replace(/[^0-9]/g, '').substring(0, 10);
+      };
+      document.querySelectorAll('.whatsapp').forEach(input => {
+        if (!input.dataset.bound) {
+          input.addEventListener('input', whatsappHandler);
+          input.dataset.bound = 'true';
+        }
+      });
 
       document.getElementById('submit-client')?.addEventListener('click', () => {
         let isAllFilled = true;
