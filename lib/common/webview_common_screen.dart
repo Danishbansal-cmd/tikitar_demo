@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:tikitar_demo/common/constants.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
@@ -87,25 +88,19 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                       final message = args[0];
                       switch (message) {
                         case "flutter_navigate_to_profile":
-                          Navigator.pushReplacementNamed(context, '/profile');
+                          Get.offNamed('/profile');
                           return;
                         case "flutter_navigate_to_companyList":
-                          Navigator.pushReplacementNamed(
-                            context,
-                            '/companyList',
-                          );
+                          Get.offNamed('/companyList');
                           return;
                         case "flutter_navigate_to_meetingList":
-                          Navigator.pushReplacementNamed(
-                            context,
-                            '/meetingList',
-                          );
+                          Get.offNamed('/meetingList');
                           return;
                         case "flutter_navigate_to_addTask":
-                          Navigator.pushReplacementNamed(context, '/addTask');
+                          Get.offNamed('/addTask');
                           return;
                         case "flutter_navigate_to_dashboard":
-                          Navigator.pushReplacementNamed(context, '/dashboard');
+                          Get.offNamed('/dashboard');
                           return;
                         case "flutter_navigate_to_logout":
                           bool? confirmed = await showDialog<bool>(
@@ -119,12 +114,12 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                                 actions: [
                                   TextButton(
                                     onPressed:
-                                        () => Navigator.of(context).pop(false),
+                                        () => Get.back(result: false),
                                     child: Text("Cancel"),
                                   ),
                                   TextButton(
                                     onPressed:
-                                        () => Navigator.of(context).pop(true),
+                                        () => Get.back(result: true),
                                     child: Text("Sure"),
                                   ),
                                 ],
@@ -135,12 +130,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                           if (confirmed == true) {
                             await TokenStorage.clearToken();
                             await DataStorage.clearUserData();
-                            Navigator.pushNamedAndRemoveUntil(
-                              // ignore: use_build_context_synchronously
-                              context,
-                              '/login',
-                              (_) => false,
-                            );
+                            Get.offAllNamed('/login');
                           }
                           await controller.evaluateJavascript(
                             source: """
@@ -172,15 +162,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                       developer.log("I came here");
                       developer.log("Clicked userId: $userId");
 
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder:
-                              (context) => UserMeetings(
-                                userId: userId,
-                                userName: userName,
-                              ),
-                        ),
-                      );
+                      Get.to(() => UserMeetings(userId: userId, userName: userName));
                     },
                   );
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:tikitar_demo/core/network/api_base.dart';
 import 'package:tikitar_demo/features/data/local/token_storage.dart';
 
@@ -21,9 +22,9 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (token != null) {
       ApiBase.setToken(token);
-      Navigator.pushReplacementNamed(context, '/dashboard');
+      Get.offNamed('/dashboard');
     } else {
-      Navigator.pushReplacementNamed(context, '/login');
+      Get.offNamed('/login');
     }
   }
 

@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'package:tikitar_demo/features/auth/clients_controller.dart';
@@ -437,19 +438,19 @@ class _TaskScreenState extends State<TaskScreen> {
           content: const Text('Choose an option to upload your visiting card'),
           actions: <Widget>[
             TextButton(
-              onPressed: () => Navigator.pop(context, 1), // Camera
+              onPressed: () => Get.back(result: 1), // Camera
               child: const Text('Take Photo'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, 2), // Gallery
+              onPressed: () => Get.back(result: 2), // Gallery
               child: const Text('Choose from Gallery'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, 3), // File picker
+              onPressed: () => Get.back(result: 3), // File picker
               child: const Text('Choose File'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, 0), // Cancel
+              onPressed: () => Get.back(result: 0), // Cancel
               child: const Text('Cancel'),
             ),
           ],

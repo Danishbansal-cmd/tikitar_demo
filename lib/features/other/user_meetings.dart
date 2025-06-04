@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:get/get.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
 
@@ -29,7 +30,7 @@ class _UserMeetingsState extends State<UserMeetings> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(), // navigate back
+          onPressed: () => Get.back(), // navigate back
         ),
         title: Text(widget.userName),
         backgroundColor: const Color(0xFFFECC00),

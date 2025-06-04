@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:tikitar_demo/features/auth/auth_controller.dart';
 
 
@@ -28,7 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
     print("Login result: $result");
 
     if (result['status'] == true && result['data']?['token'] != null) {
-      Navigator.pushReplacementNamed(context, '/dashboard');
+      Get.offNamed('/dashboard');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message'] ?? 'Login failed')),

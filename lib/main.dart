@@ -2,6 +2,7 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get/get.dart';
 import 'package:tikitar_demo/features/auth/login_screen.dart';
 import 'package:tikitar_demo/features/other/splash_screen.dart';
 import 'package:tikitar_demo/features/webview/company_list_screen.dart';
@@ -171,19 +172,19 @@ class _MyAppState extends State<MyApp>{
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return GetMaterialApp(
       debugShowCheckedModeBanner: false,
       initialRoute: '/', // initial route when app starts
-      routes: {
-        '/': (context) => const SplashScreen(),
-        '/login': (context) => LoginScreen(),
-        '/dashboard': (context) => DashboardScreen(),
-        '/task': (context) => TaskScreen(),
-        '/profile': (context) => MyProfileScreen(),
-        '/meetingList': (context) => MeetingListScreen(),
-        '/companyList': (context) => CompanyListScreen(),
-        '/addTask': (context) => TaskScreen(),
-      },
+      getPages: [
+        GetPage(name: '/', page: () => SplashScreen()),
+        GetPage(name: '/login', page: () => LoginScreen()),
+        GetPage(name: '/dashboard', page: () => DashboardScreen()),
+        GetPage(name: '/task', page: () => TaskScreen()),
+        GetPage(name: '/profile', page: () => MyProfileScreen()),
+        GetPage(name: '/meetingList', page: () => MeetingListScreen()),
+        GetPage(name: '/companyList', page: () => CompanyListScreen()),
+        GetPage(name: '/addTask', page: () => TaskScreen()),
+      ],
     );
   }
 }

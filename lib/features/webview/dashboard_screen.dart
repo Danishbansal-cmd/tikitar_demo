@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
@@ -100,7 +101,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Text("Open Settings"),
                   ),
                   TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () => Get.back(),
                     child: Text("Cancel"),
                   ),
                 ],
