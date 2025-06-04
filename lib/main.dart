@@ -1,3 +1,5 @@
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tikitar_demo/features/auth/login_screen.dart';
@@ -97,6 +99,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Ensure this line is there
   //You're calling SharedPreferences.getInstance() before Flutter is fully ready,
   //most likely before WidgetsFlutterBinding.ensureInitialized() is called.
+
+  await Firebase.initializeApp();
+  FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 
   // Force portrait mode only
   await SystemChrome.setPreferredOrientations([

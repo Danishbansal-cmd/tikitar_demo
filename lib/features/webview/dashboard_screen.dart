@@ -11,6 +11,7 @@ import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
+import 'package:tikitar_demo/network/firebase_api.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -29,6 +30,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _checkAndRequestLocationPermission();
     _fetchCategoriesAndStore(); // to get the categories Option and Store it
     _fetchAllStates(); // to get or fetch all the states
+    initializePushNotifications();
   }
 
   @override
@@ -240,5 +242,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
         name: "DashboardScreen",
       );
     }
+  }
+
+  Future<void> initializePushNotifications() async {
+    final permissionStatus = await Permission.notification.status;
+    debugPrint("🔍 Current notification permission: $permissionStatus");
+
+    if (permissionStatus.isDenied || permissionStatus.isRestricted) {
+      final result = await Permission.notification.request();
+      debugPrint("🔔 Requested notification permission: $result");
+
+      if (!result.isGranted) {
+        debugPrint("❌ Notification permission not granted.");
+        return;
+      }
+    }
+
+    debugPrint("✅ Notification permission granted. Initializing Firebase...");
+    await FirebaseApi.initNotifications();
   }
 }

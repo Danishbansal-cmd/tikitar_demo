@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1050371173164",
+    "project_id": "trackify-24425",
+    "storage_bucket": "trackify-24425.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1050371173164:android:d12353021c4cc434a19a89",
+        "android_client_info": {
+          "package_name": "com.example.tikitar_demo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBBkKnds9ydmCq43w35HDzFdfoQh6QRyE4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
