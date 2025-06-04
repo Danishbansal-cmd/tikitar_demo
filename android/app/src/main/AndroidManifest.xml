@@ -25,7 +25,7 @@
     </queries>
 
     <application
-        android:label="tikitar_demo"
+        android:label="Trackify"
         android:name="${applicationName}"
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher">
