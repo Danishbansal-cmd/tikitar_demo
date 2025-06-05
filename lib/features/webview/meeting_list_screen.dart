@@ -18,6 +18,7 @@ class MeetingListScreen extends StatefulWidget {
 
 class _MeetingListScreenState extends State<MeetingListScreen> {
   int? userId;
+  bool? fetchShowGaugesBoolFromPreferences;
 
   @override
   void initState() {
@@ -36,6 +37,12 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
           pageName: "MeetingListScreen",
           userId: userId,
         );
+
+        if(fetchShowGaugesBoolFromPreferences == true){
+          Functions.fetchMonthlyData(
+            controller: controller,
+          );
+        }
       },
     );
   }
@@ -48,7 +55,14 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
       // converting to int successfully
       userId = int.tryParse(decoded['id'].toString()) ?? 0;
     }
-    developer.log("Extracted userId: $userId", name: "TaskScreen");
+    developer.log("Extracted userId: $userId", name: "MeetingListScreen");
+    
+    // Get gauges data from SharedPreferences, to finally decide whether to show gauges or not
+    fetchShowGaugesBoolFromPreferences = await DataStorage.getShowGaugesBoolean();
+    developer.log(
+      "Extracted fetchShowGaugesBoolFromPreferences: $fetchShowGaugesBoolFromPreferences",
+      name: "MeetingListScreen",
+    );
   }
 }
 

@@ -6,7 +6,6 @@ import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'dart:developer' as developer;
 
-import 'package:tikitar_demo/core/network/api_base.dart';
 import 'package:tikitar_demo/features/auth/clients_controller.dart';
 import 'package:tikitar_demo/features/auth/company_controller.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
@@ -24,6 +23,7 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
   int? userId;
   String categoryOptionsHTML = '';
   String stateOptionsHTML = '';
+  bool? fetchShowGaugesBoolFromPreferences;
 
   @override
   void initState() {
@@ -87,6 +87,10 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
         // You can add any additional logic here if needed
         await injectMoreJS();
 
+        if (fetchShowGaugesBoolFromPreferences == true) {
+          Functions.fetchMonthlyData(controller: controller);
+        }
+
         // fetch the companies data and inject in this view
         await fetchCompanies();
       },
@@ -101,6 +105,13 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
       userId = int.tryParse(decoded['id'].toString()) ?? 0;
     }
     developer.log("Extracted userId: $userId", name: "CompanyListScreen");
+
+    // Get gauges data from SharedPreferences, to finally decide whether to show gauges or not
+    fetchShowGaugesBoolFromPreferences = await DataStorage.getShowGaugesBoolean();
+    developer.log(
+      "Extracted fetchShowGaugesBoolFromPreferences: $fetchShowGaugesBoolFromPreferences",
+      name: "CompanyListScreen",
+    );
   }
 
   Future<void> fetchCompanies() async {

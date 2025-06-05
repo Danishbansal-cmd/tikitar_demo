@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
+import 'package:tikitar_demo/features/auth/auth_controller.dart';
 import 'package:tikitar_demo/features/auth/categories_controller.dart';
 import 'package:tikitar_demo/features/auth/user_controller.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
@@ -23,6 +24,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int userId = 0;
+  bool? fetchShowGaugesBoolFromPreferences;
 
   @override
   void initState() {
@@ -55,6 +57,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       controller: controller,
       pageName: "DashboardScreen",
     );
+
+    await fetchIndividualData(controller: controller);
   }
 
   Future<void> _initializeDashboard() async {
@@ -65,6 +69,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       userId = int.tryParse(decoded['id'].toString()) ?? 0;
     }
     developer.log("Extracted userId: $userId", name: "DashboardScreen");
+
+    // Get gauges data from SharedPreferences, to finally decide whether to show gauges or not
+    fetchShowGaugesBoolFromPreferences = await DataStorage.getShowGaugesBoolean();
+    developer.log(
+      "Extracted fetchShowGaugesBoolFromPreferences: $fetchShowGaugesBoolFromPreferences",
+      name: "DashboardScreen",
+    );
   }
 
   Future<void> _checkAndRequestLocationPermission() async {
@@ -156,6 +167,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         tableRowsDataJS: tableRowsJS,
         pageName: pageName,
       );
+
+      // as there are users, that are reporting to this logged in user
+      // then show the two gauges, that are under the main gauge, and update
+      // the variable in shared Preferences
+      Functions.fetchMonthlyData(controller: controller);
+
+      // If no preference is set, default to showing gauges
+      if (fetchShowGaugesBoolFromPreferences == null ||
+          fetchShowGaugesBoolFromPreferences == false) {
+        DataStorage.saveShowGaugesBoolean(true);
+      }
     } catch (e) {
       developer.log("Error: $e", name: "$pageName");
 
@@ -164,6 +186,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         pageName: pageName,
         userId: userId,
       );
+
+      // If there are no users reporting to this user, then hide the gauges
+      // and update the variable in shared Preferences
+      if (fetchShowGaugesBoolFromPreferences == null ||
+          fetchShowGaugesBoolFromPreferences == true) {
+        DataStorage.saveShowGaugesBoolean(false);
+      }
     }
   }
 
@@ -189,6 +218,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) {
       developer.log("Invalid JS Code: $e", name: "$pageName");
     }
+  }
+
+  Future<void> fetchIndividualData({
+    required InAppWebViewController controller,
+  }) async {
+    String personalTargetJS = '';
+    final personalTargetData = await AuthController.fetchPersonalTarget();
+    if (personalTargetData['status'] == true) {
+      personalTargetJS = "";
+    } else {
+      personalTargetJS = "";
+    }
+    await controller.evaluateJavascript(source: personalTargetJS);
+
+    String bonusMetricJS = '';
+    final bonusMetricData = await AuthController.fetchBonusMetric();
+    if (bonusMetricData['status'] == true) {
+      bonusMetricJS = "";
+    } else {
+      bonusMetricJS = "";
+    }
+    await controller.evaluateJavascript(source: bonusMetricJS);
   }
 
   // fetch all the available categories and store in shared preferences
