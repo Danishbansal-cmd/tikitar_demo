@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'package:tikitar_demo/features/auth/auth_controller.dart';
@@ -14,6 +15,7 @@ import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 import 'package:tikitar_demo/network/firebase_api.dart';
+import 'package:tikitar_demo/features/other/foregroundBackground.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -34,6 +36,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _fetchCategoriesAndStore(); // to get the categories Option and Store it
     _fetchAllStates(); // to get or fetch all the states
     initializePushNotifications();
+    // fetch the locaion in foreground mode which is used to track the user location
+    // even when the app is in terminated state
+    initializeForegroundBackgroundService(); // Initialize the background service
+    fetchAndSendLocationHistoryData(); // Fetch and send location history data from shared preferences key of 'location_history'
   }
 
   @override
@@ -71,7 +77,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     developer.log("Extracted userId: $userId", name: "DashboardScreen");
 
     // Get gauges data from SharedPreferences, to finally decide whether to show gauges or not
-    fetchShowGaugesBoolFromPreferences = await DataStorage.getShowGaugesBoolean();
+    fetchShowGaugesBoolFromPreferences =
+        await DataStorage.getShowGaugesBoolean();
     developer.log(
       "Extracted fetchShowGaugesBoolFromPreferences: $fetchShowGaugesBoolFromPreferences",
       name: "DashboardScreen",
@@ -312,5 +319,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     debugPrint("✅ Notification permission granted. Initializing Firebase...");
     await FirebaseApi.initNotifications();
+  }
+
+  Future<void> fetchAndSendLocationHistoryData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> locationList = prefs.getStringList('location_history') ?? [];
+
+    // send location list history data logic
+    // if (locationList.isNotEmpty) {
+    //   await FirebaseApi.sendLocationHistory(
+    //     userId: userId,
+    //     locationData: locationList,
+    //   );
+    // }
+
+    // Clear the location history after sending
+    prefs.setStringList('location_history', []);
+    debugPrint("📍 Location history data sent and cleared.");
   }
 }

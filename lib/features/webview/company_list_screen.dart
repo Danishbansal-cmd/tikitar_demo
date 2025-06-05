@@ -81,8 +81,8 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
         );
       },
       onLoadStop: (controller, url) async {
-        // ✅ Show loading spinner immediately
-        await showLoadingSpinner(controller);
+         // fetch the companies data and inject in this view
+        await fetchCompanies(controller: controller);
 
         // You can add any additional logic here if needed
         await injectMoreJS();
@@ -90,9 +90,6 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
         if (fetchShowGaugesBoolFromPreferences == true) {
           Functions.fetchMonthlyData(controller: controller);
         }
-
-        // fetch the companies data and inject in this view
-        await fetchCompanies();
       },
     );
   }
@@ -114,7 +111,10 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
     );
   }
 
-  Future<void> fetchCompanies() async {
+  Future<void> fetchCompanies({required InAppWebViewController controller}) async {
+    // ✅ Show loading spinner immediately
+    await showLoadingSpinner(controller);
+
     String companyRowJS = '''
       <tr>
         <th>Rank</th>

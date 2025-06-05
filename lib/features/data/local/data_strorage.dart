@@ -56,4 +56,8 @@ class DataStorage {
     final prefs = await _instance;
     await prefs.remove('show_gauges');
   }
+
+  static Future<SharedPreferences> getInstace() async{
+    return await _instance;
+  }
 }
