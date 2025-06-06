@@ -38,10 +38,8 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
           userId: userId,
         );
 
-        if(fetchShowGaugesBoolFromPreferences == true){
-          Functions.fetchMonthlyData(
-            controller: controller,
-          );
+        if (fetchShowGaugesBoolFromPreferences == true) {
+          Functions.fetchMonthlyData(controller: controller);
         }
       },
     );
@@ -56,9 +54,10 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
       userId = int.tryParse(decoded['id'].toString()) ?? 0;
     }
     developer.log("Extracted userId: $userId", name: "MeetingListScreen");
-    
+
     // Get gauges data from SharedPreferences, to finally decide whether to show gauges or not
-    fetchShowGaugesBoolFromPreferences = await DataStorage.getShowGaugesBoolean();
+    fetchShowGaugesBoolFromPreferences =
+        await DataStorage.getShowGaugesBoolean();
     developer.log(
       "Extracted fetchShowGaugesBoolFromPreferences: $fetchShowGaugesBoolFromPreferences",
       name: "MeetingListScreen",
@@ -121,8 +120,14 @@ Future<void> fetchAndInjectMeetings({
 
     developer.log("User ID being passed: $userId", name: "$pageName");
     developer.log("Filter being passed: $filter", name: "$pageName");
-    developer.log("fromDatePassed being passed: $fromDatePassed", name: "$pageName");
-    developer.log("toDatePassed being passed: $toDatePassed", name: "$pageName");
+    developer.log(
+      "fromDatePassed being passed: $fromDatePassed",
+      name: "$pageName",
+    );
+    developer.log(
+      "toDatePassed being passed: $toDatePassed",
+      name: "$pageName",
+    );
 
     final response = await MeetingsController.userBasedMeetings(userId!);
     final List<dynamic> fullMeetingsList = response['data'] ?? [];
@@ -156,7 +161,8 @@ Future<void> fetchAndInjectMeetings({
             final rawDate = meeting['meeting_date'] ?? '';
             final meetingDate = DateTime.parse(rawDate);
             return meetingDate.isAfter(fromDate) && meetingDate.isBefore(now) ||
-                meetingDate.isAtSameMomentAs(fromDate) || meetingDate.isAtSameMomentAs(now);
+                meetingDate.isAtSameMomentAs(fromDate) ||
+                meetingDate.isAtSameMomentAs(now);
           } catch (_) {
             return false;
           }
@@ -168,6 +174,19 @@ Future<void> fetchAndInjectMeetings({
     );
 
     String twoDigits(int n) => n.toString().padLeft(2, '0');
+
+    if (filteredMeetings.isEmpty) {
+      // If no meetings found, show a message
+      tableRowsJS += """
+        <tr>
+          <td colspan="4" style="text-align: center; color: red;">No meetings found for the selected filter.</td>
+        </tr>
+      """;
+      developer.log(
+        "No meetings found for the selected filter.",
+        name: "$pageName",
+      );
+    }
 
     for (int i = 0; i < filteredMeetings.length; i++) {
       final meeting = filteredMeetings[i];

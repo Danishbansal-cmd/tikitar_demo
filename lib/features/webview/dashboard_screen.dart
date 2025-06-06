@@ -38,7 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     initializePushNotifications();
     // fetch the locaion in foreground mode which is used to track the user location
     // even when the app is in terminated state
-    initializeForegroundBackgroundService(); // Initialize the background service
+    // initializeForegroundBackgroundService(); // Initialize the background service
     fetchAndSendLocationHistoryData(); // Fetch and send location history data from shared preferences key of 'location_history'
   }
 
