@@ -37,6 +37,14 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.6
+
+flutter_native_splash:
+  color: "#ffffff"                        # background color
+  image: assets/images/app-icon.png    # path to your logo
+  android: true
+  ios: true
+  fullscreen: true
 
 
 flutter_icons:
@@ -53,5 +61,5 @@ flutter:
   assets:
     - assets/images/tikitar-logo.png
     - assets/images/tikitar-bar.png
-    - assets/images/ic_launcher.png
+    - assets/images/app-icon.png
     - assets/svg/warning.svg
