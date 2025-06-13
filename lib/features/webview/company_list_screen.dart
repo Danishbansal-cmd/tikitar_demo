@@ -24,10 +24,10 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
   String categoryOptionsHTML = '';
   String stateOptionsHTML = '';
   bool? fetchShowGaugesBoolFromPreferences;
+  int daysInMonth = 0;
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     _initializeCompanyListScreen();
 
@@ -81,14 +81,15 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
         );
       },
       onLoadStop: (controller, url) async {
-         // fetch the companies data and inject in this view
+        // fetch the companies data and inject in this view
         await fetchCompanies(controller: controller);
 
         // You can add any additional logic here if needed
         await injectMoreJS();
 
+        // show the middle gauges as there are some persons that are reporting to it
         if (fetchShowGaugesBoolFromPreferences == true) {
-          Functions.fetchMonthlyData(controller: controller);
+          Functions.fetchMonthlyData(controller: controller, daysInMonth: daysInMonth);
         }
       },
     );
@@ -104,14 +105,24 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
     developer.log("Extracted userId: $userId", name: "CompanyListScreen");
 
     // Get gauges data from SharedPreferences, to finally decide whether to show gauges or not
-    fetchShowGaugesBoolFromPreferences = await DataStorage.getShowGaugesBoolean();
+    fetchShowGaugesBoolFromPreferences =
+        await DataStorage.getShowGaugesBoolean();
     developer.log(
       "Extracted fetchShowGaugesBoolFromPreferences: $fetchShowGaugesBoolFromPreferences",
       name: "CompanyListScreen",
     );
+
+    // Get the current year and month
+    final DateTime now = DateTime.now();
+    final int currentYear = now.year;
+    final int currentMonth = now.month;
+    // Calculate the number of days in the current month
+    daysInMonth = DateUtils.getDaysInMonth(currentYear, currentMonth);
   }
 
-  Future<void> fetchCompanies({required InAppWebViewController controller}) async {
+  Future<void> fetchCompanies({
+    required InAppWebViewController controller,
+  }) async {
     // ✅ Show loading spinner immediately
     await showLoadingSpinner(controller);
 

@@ -19,6 +19,7 @@ class MeetingListScreen extends StatefulWidget {
 class _MeetingListScreenState extends State<MeetingListScreen> {
   int? userId;
   bool? fetchShowGaugesBoolFromPreferences;
+  int daysInMonth = 0;
 
   @override
   void initState() {
@@ -36,10 +37,12 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
           controller: controller,
           pageName: "MeetingListScreen",
           userId: userId,
+          filter: "All Data" // set the filter to All Data, to always show all the meetings
         );
 
+        // show the middle gauges as there are some persons that are reporting to it
         if (fetchShowGaugesBoolFromPreferences == true) {
-          Functions.fetchMonthlyData(controller: controller);
+          Functions.fetchMonthlyData(controller: controller, daysInMonth: daysInMonth);
         }
       },
     );
@@ -62,6 +65,13 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
       "Extracted fetchShowGaugesBoolFromPreferences: $fetchShowGaugesBoolFromPreferences",
       name: "MeetingListScreen",
     );
+    
+    // Get the current year and month
+    final DateTime now = DateTime.now();
+    final int currentYear = now.year;
+    final int currentMonth = now.month;
+    // Calculate the number of days in the current month
+    daysInMonth = DateUtils.getDaysInMonth(currentYear, currentMonth);
   }
 }
 

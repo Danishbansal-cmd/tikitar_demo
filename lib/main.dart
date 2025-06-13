@@ -1,4 +1,3 @@
-import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,7 +18,6 @@ void main() async {
   //most likely before WidgetsFlutterBinding.ensureInitialized() is called.
 
   await Firebase.initializeApp();
-  FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 
   // Force portrait mode only
   await SystemChrome.setPreferredOrientations([

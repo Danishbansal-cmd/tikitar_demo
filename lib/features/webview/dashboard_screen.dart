@@ -15,7 +15,6 @@ import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 import 'package:tikitar_demo/network/firebase_api.dart';
-import 'package:tikitar_demo/features/other/foregroundBackground.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -27,6 +26,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int userId = 0;
   bool? fetchShowGaugesBoolFromPreferences;
+  int daysInMonth = 0;
 
   @override
   void initState() {
@@ -48,9 +48,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       url: "dashboard.php",
       title: "Dashboard",
       onLoadStop: (controller, url) async {
-        // ✅ Show loading spinner immediately
+        // Show loading spinner immediately
         await showLoadingSpinner(controller);
 
+        // Handle the dashboard load logic
         await handleDashboardLoad(controller);
       },
     );
@@ -64,6 +65,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       pageName: "DashboardScreen",
     );
 
+    // fetch data related to individual like personalTarget and bonusMetric
     await fetchIndividualData(controller: controller);
   }
 
@@ -83,6 +85,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       "Extracted fetchShowGaugesBoolFromPreferences: $fetchShowGaugesBoolFromPreferences",
       name: "DashboardScreen",
     );
+    
+    // Get the current year and month
+    final DateTime now = DateTime.now();
+    final int currentYear = now.year;
+    final int currentMonth = now.month;
+    // Calculate the number of days in the current month
+    daysInMonth = DateUtils.getDaysInMonth(currentYear, currentMonth);
   }
 
   Future<void> _checkAndRequestLocationPermission() async {
@@ -178,7 +187,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // as there are users, that are reporting to this logged in user
       // then show the two gauges, that are under the main gauge, and update
       // the variable in shared Preferences
-      Functions.fetchMonthlyData(controller: controller);
+      Functions.fetchMonthlyData(controller: controller, daysInMonth: daysInMonth);
 
       // If no preference is set, default to showing gauges
       if (fetchShowGaugesBoolFromPreferences == null ||
@@ -230,21 +239,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> fetchIndividualData({
     required InAppWebViewController controller,
   }) async {
+    // for Personal Target Value
     String personalTargetJS = '';
     final personalTargetData = await AuthController.fetchPersonalTarget();
     if (personalTargetData['status'] == true) {
       personalTargetJS = "";
+      developer.log(
+        "personalTargetData: $personalTargetData",
+        name: "fetchIndividualData",
+      );
+      final int totalMeetings =
+          int.tryParse(
+            personalTargetData['data']['total_meetings'].toString(),
+          ) ??
+          0;
+      final int meetingTarget =
+          int.tryParse(
+            personalTargetData['data']['meeting_target'].toString(),
+          ) ??
+          0;
+      // Guard against division by zero
+      int personalTargetValueDisplay = 0;
+      if (meetingTarget > 0) {
+        personalTargetValueDisplay = ((totalMeetings / daysInMonth)/ meetingTarget).round();
+      }
+      personalTargetJS = """
+        var insertPersonalTargetValue = document.getElementById('personalTargetValue');
+        insertPersonalTargetValue.textContent = "$personalTargetValueDisplay";
+        updatePersonalTargetValue();
+      """;
     } else {
-      personalTargetJS = "";
+      personalTargetJS = """
+        updatePersonalTargetValue();
+      """;
     }
     await controller.evaluateJavascript(source: personalTargetJS);
 
+    // for Bonus Metric Value
     String bonusMetricJS = '';
     final bonusMetricData = await AuthController.fetchBonusMetric();
     if (bonusMetricData['status'] == true) {
-      bonusMetricJS = "";
+      developer.log(
+        "bonusMetricData: $bonusMetricData",
+        name: "fetchIndividualData",
+      );
+      final targetCompletion = int.tryParse(
+        personalTargetData['data']['target_completion'].toString(),
+        ) ??
+        0;
+      bonusMetricJS = """
+        var insertBonusMetricValue = document.getElementById('bonusMetricValue');
+        insertBonusMetricValue.textContent = "$targetCompletion";
+        updateBonusMetricValue();
+      """;
     } else {
-      bonusMetricJS = "";
+      bonusMetricJS = """
+        updateBonusMetricValue();
+      """;
     }
     await controller.evaluateJavascript(source: bonusMetricJS);
   }
