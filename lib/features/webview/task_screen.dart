@@ -207,8 +207,8 @@ class _TaskScreenState extends State<TaskScreen> {
           const contactEmailAttr = selectedOption.getAttribute('data-contact_email') || '';
           const contactMobileAttr = selectedOption.getAttribute('data-contact_mobile') || '';
 
-          contactMobile && (contactMobile.value = contactEmailAttr || '');
-          contactEmail && (contactEmail.value = contactMobileAttr || '');
+          contactMobile && (contactMobile.value = contactMobileAttr || '');
+          contactEmail && (contactEmail.value = contactEmailAttr || '');
         });
       });
 
