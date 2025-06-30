@@ -34,7 +34,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _initializeDashboard();
     _checkAndRequestLocationPermission();
     _fetchCategoriesAndStore(); // to get the categories Option and Store it
-    _fetchAllStates(); // to get or fetch all the states
+    //
+    // _fetchAllStates(); // to get or fetch all the states // not working properly
     initializePushNotifications();
     // fetch the locaion in foreground mode which is used to track the user location
     // even when the app is in terminated state

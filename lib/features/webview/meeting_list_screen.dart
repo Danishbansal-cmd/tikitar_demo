@@ -300,8 +300,8 @@ Future<void> injectTableDataWithComments({
             top: 0px;
             right: 0px;
             cursor: pointer;
-            font-size: 32px;
-            padding: 8px 20px;
+            font-size: 28px;
+            padding: 0px 8px;
             background-color: #fecc00;
             color: #fff;
             border-radius: 4px;
