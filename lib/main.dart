@@ -1,16 +1,17 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:get/get.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:tikitar_demo/features/auth/login_screen.dart';
-import 'package:tikitar_demo/features/other/database.dart';
+import 'package:tikitar_demo/features/other/foregroundBackground.dart';
 import 'package:tikitar_demo/features/other/splash_screen.dart';
 import 'package:tikitar_demo/features/webview/company_list_screen.dart';
 import 'package:tikitar_demo/features/webview/dashboard_screen.dart';
 import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
 import 'package:tikitar_demo/features/webview/my_profile_screen.dart';
 import 'package:tikitar_demo/features/webview/task_screen.dart';
-import 'dart:developer' as developer;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Ensure this line is there
@@ -35,16 +36,13 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp>{
-  DatabaseHelper dbHelper = DatabaseHelper.privateConstructor();
-  List<Map<String, dynamic>> _locations = [];
+class _MyAppState extends State<MyApp> {
   
   @override
   void initState() {
     super.initState();
-    _performDatabaseOperations();
+    _checkAndRequestLocationPermission();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -64,43 +62,55 @@ class _MyAppState extends State<MyApp>{
     );
   }
 
-  
+  Future<void> _checkAndRequestLocationPermission() async {
+    FlutterBackgroundService().invoke('stopService'); // Clear any existing
 
-Future<void> _performDatabaseOperations() async {
-    // Insert sample data
-    int insertedId = await dbHelper.insertData({
-      'name': 'Sample Place',
-      'latitude': '28.7041',
-      'longitude': '77.1025',
-    });
-    developer.log('Inserted ID: $insertedId');
+    // First request foreground location permission
+    var foregroundStatus = await Permission.locationWhenInUse.status;
+    if (foregroundStatus.isDenied || foregroundStatus.isRestricted) {
+      foregroundStatus = await Permission.locationWhenInUse.request();
+    }
 
-    // Retrieve all rows
-    List<Map<String, dynamic>> allRows = await dbHelper.retrieveAllData();
-    developer.log('All rows: $allRows', name: "Main.dart");
+    // Then request background location permission (locationAlways)
+    var backgroundStatus = await Permission.locationAlways.status;
+    if (backgroundStatus.isDenied || backgroundStatus.isRestricted) {
+      backgroundStatus = await Permission.locationAlways.request();
+    }
 
-    // Update the inserted row
-    await dbHelper.updateData({
-      '_id': insertedId,
-      'name': 'Updated Place',
-      'latitude': '28.7000',
-      'longitude': '77.1000',
-    });
+    if (foregroundStatus.isGranted) {
+      // fetch the locaion in foreground mode which is used to track the user location
+      // when the app is open or in the ram (user using other app)
+      await initializeForegroundBackgroundService(); // Initialize the background service
+    }
 
-    // Retrieve again
-    List<Map<String, dynamic>> updatedRows = await dbHelper.retrieveAllData();
-    developer.log('After update: $updatedRows', name: "Main.dart");
+    // If permanently denied, show alert
+    if (backgroundStatus.isPermanentlyDenied) {
+      // Check if the widget is still mounted before showing the dialog
+      // it ensures that the dialog is shown only if the widget is still in the widget tree
+      if (!mounted) return;
 
-    // Delete the row
-    await dbHelper.deleteData(insertedId);
-
-    // Check final state
-    List<Map<String, dynamic>> finalRows = await dbHelper.retrieveAllData();
-    developer.log('After delete: $finalRows', name: "Main.dart");
-
-    // Update UI with current DB data
-    setState(() {
-      _locations = finalRows;
-    });
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder:
+              (_) => AlertDialog(
+                title: Text("Permission Required"),
+                content: Text(
+                  "Location permission is permanently denied. Please enable it in app settings.",
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => openAppSettings(),
+                    child: Text("Open Settings"),
+                  ),
+                  TextButton(
+                    onPressed: () => Get.back(),
+                    child: Text("Cancel"),
+                  ),
+                ],
+              ),
+        );
+      }
+    }
   }
 }

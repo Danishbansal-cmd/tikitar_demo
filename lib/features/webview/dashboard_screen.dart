@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tikitar_demo/common/functions.dart';
@@ -13,7 +12,6 @@ import 'package:tikitar_demo/features/auth/user_controller.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
 import 'dart:developer' as developer;
-import 'package:http/http.dart' as http;
 import 'package:tikitar_demo/network/firebase_api.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -23,7 +21,7 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>{
   int userId = 0;
   bool? fetchShowGaugesBoolFromPreferences;
   int daysInMonth = 0;
@@ -32,14 +30,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _initializeDashboard();
-    _checkAndRequestLocationPermission();
     _fetchCategoriesAndStore(); // to get the categories Option and Store it
-    //
-    // _fetchAllStates(); // to get or fetch all the states // not working properly
     initializePushNotifications();
-    // fetch the locaion in foreground mode which is used to track the user location
-    // even when the app is in terminated state
-    // initializeForegroundBackgroundService(); // Initialize the background service
     fetchAndSendLocationHistoryData(); // Fetch and send location history data from shared preferences key of 'location_history'
   }
 
@@ -95,50 +87,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     daysInMonth = DateUtils.getDaysInMonth(currentYear, currentMonth);
   }
 
-  Future<void> _checkAndRequestLocationPermission() async {
-    // First request foreground location permission
-    var foregroundStatus = await Permission.locationWhenInUse.status;
-    if (foregroundStatus.isDenied || foregroundStatus.isRestricted) {
-      foregroundStatus = await Permission.locationWhenInUse.request();
-    }
-
-    // Then request background location permission (locationAlways)
-    var backgroundStatus = await Permission.locationAlways.status;
-    if (backgroundStatus.isDenied || backgroundStatus.isRestricted) {
-      backgroundStatus = await Permission.locationAlways.request();
-    }
-
-    // If permanently denied, show alert
-    if (backgroundStatus.isPermanentlyDenied) {
-      // Check if the widget is still mounted before showing the dialog
-      // it ensures that the dialog is shown only if the widget is still in the widget tree
-      if (!mounted) return;
-
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          builder:
-              (_) => AlertDialog(
-                title: Text("Permission Required"),
-                content: Text(
-                  "Location permission is permanently denied. Please enable it in app settings.",
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => openAppSettings(),
-                    child: Text("Open Settings"),
-                  ),
-                  TextButton(
-                    onPressed: () => Get.back(),
-                    child: Text("Cancel"),
-                  ),
-                ],
-              ),
-        );
-      }
-    }
-  }
-
+  
   Future<void> fetchAndInjectUsers({
     required InAppWebViewController controller,
     String? pageName,
@@ -317,44 +266,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // fetch all states and save in storage of shared preferences
-  Future<void> _fetchAllStates() async {
-    const String url =
-        'https://api.data.gov.in/resource/a71e60f0-a21d-43de-a6c5-fa5d21600cdb';
-    const String apiKey =
-        '579b464db66ec23bdd000001cdc3b564546246a772a26393094f5645';
-
-    var response = await http.get(
-      Uri.parse('$url?api-key=$apiKey&offset=0&limit=all&format=json'),
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-
-      developer.log('Title: ${data['title']}', name: "DashboardScreen");
-
-      List records = data['records'] ?? [];
-      // Extract and store unique state names
-      List<String> stateNames =
-          records
-              .map((record) => record['state_name_english'] as String?)
-              .whereType<String>() // filters out nulls
-              .toSet() // optional: remove duplicates
-              .toList();
-
-      developer.log(
-        "states name data: ${stateNames.toString()}",
-        name: "DashboardScreen",
-      );
-      await DataStorage.saveStateNames(stateNames);
-    } else {
-      developer.log(
-        'Failed to load Sates name data: ${response.statusCode}',
-        name: "DashboardScreen",
-      );
-    }
-  }
-
   Future<void> initializePushNotifications() async {
     final permissionStatus = await Permission.notification.status;
     debugPrint("🔍 Current notification permission: $permissionStatus");
@@ -378,12 +289,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     List<String> locationList = prefs.getStringList('location_history') ?? [];
 
     // send location list history data logic
-    // if (locationList.isNotEmpty) {
-    //   await FirebaseApi.sendLocationHistory(
-    //     userId: userId,
-    //     locationData: locationList,
-    //   );
-    // }
+    if (locationList.isNotEmpty) {
+      print("📍 Location History (${locationList.length} entries):");
+      for (var i = 0; i < locationList.length; i++) {
+        print("[$i] ${locationList[i]}");
+      }
+
+      // await FirebaseApi.sendLocationHistory(
+      //   userId: userId,
+      //   locationData: locationList,
+      // );
+    }
 
     // Clear the location history after sending
     prefs.setStringList('location_history', []);

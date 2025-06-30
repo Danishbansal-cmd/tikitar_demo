@@ -37,8 +37,6 @@ bool _hasError = false;
 bool _isLoading = true;
 
 class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
-  // Removed unused _webViewController field
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -185,6 +183,20 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                   );
                 },
                 onLoadStop: (controller, url) async {
+                  // it disables the user select
+                  await controller.evaluateJavascript(source: """
+                    const style = document.createElement('style');
+                    style.innerHTML = `
+                      * {
+                        -webkit-user-select: none !important;
+                        -moz-user-select: none !important;
+                        -ms-user-select: none !important;
+                        user-select: none !important;
+                      }
+                    `;
+                    document.head.appendChild(style);
+                  """);
+
                   // Check if the widget is still mounted before proceeding
                   // A State object is considered "mounted" when it is associated
                   //with a BuildContext and is part of the widget tree.

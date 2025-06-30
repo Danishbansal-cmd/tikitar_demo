@@ -3,7 +3,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 
 Future<void> initializeForegroundBackgroundService() async {
   final service = FlutterBackgroundService();
@@ -11,9 +10,12 @@ Future<void> initializeForegroundBackgroundService() async {
   await service.configure(
     androidConfiguration: AndroidConfiguration(
       onStart: onStart,
-      autoStartOnBoot: true,
+      autoStartOnBoot:
+          false, // disable auto-start on boot (you don’t want tracking after reboot)
       autoStart: true,
       isForegroundMode: true,
+      initialNotificationTitle: 'Location Tracking Enabled',
+      initialNotificationContent: 'We are monitoring your location...',
     ),
     iosConfiguration: IosConfiguration(),
   );
@@ -23,79 +25,53 @@ Future<void> initializeForegroundBackgroundService() async {
 
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
-  bool isTracking = true;
-  SharedPreferences prefs = await DataStorage.getInstace();
+  WidgetsFlutterBinding.ensureInitialized(); // Safe here if called first
 
+  final prefs = await SharedPreferences.getInstance();
   List<String> locationList = prefs.getStringList('location_history') ?? [];
 
-  // Required for accessing platform channels in background isolate
-  WidgetsFlutterBinding.ensureInitialized();
+  bool isTracking = true;
 
-  final timer = Timer.periodic(const Duration(seconds: 60*15), (timer) async {
+  final positionStream = Geolocator.getPositionStream(
+    locationSettings: const LocationSettings(
+      accuracy: LocationAccuracy.low,
+      distanceFilter: 1, // location changes by 50 meters
+    ),
+  ).listen((position) async {
     if (!isTracking) return;
 
+    final pos = "Lat: ${position.latitude}, Lng: ${position.longitude}";
+    locationList.add(pos);
+    await prefs.setStringList('location_history', locationList);
+
     if (service is AndroidServiceInstance) {
-      if (await service.isForegroundService()) {
-        // 🔍 Get current location
-        LocationPermission permission = await Geolocator.checkPermission();
-        if (permission == LocationPermission.whileInUse ||
-            permission == LocationPermission.always) {
-          // final position = await Geolocator.getCurrentPosition();
-          try {
-            final position = await Geolocator.getCurrentPosition(
-              desiredAccuracy: LocationAccuracy.low,
-            );
-
-            final pos = "Lat: ${position.latitude}, Lng: ${position.longitude}";
-              locationList.add(pos);
-
-            // Save updated list
-            await prefs.setStringList('location_history', locationList);
-
-            // Display all locations (last 5 for brevity)
-            String content = locationList.reversed.take(5).join('\n');
-
-            // use position
-            service.setForegroundNotificationInfo(
-              title: "Tracking ${locationList.length} positions",
-              content: content,
-            );
-
-            // You can also send this data to a server or save it
-            print("Logged: $pos");
-          } catch (e) {
-            print("Error getting position: $e");
-          }
-        } else {
-          print("Location permission not granted.");
-        }
-      }
+      // if (await service.isForegroundService()) {
+        service.setForegroundNotificationInfo(
+          title: "Tracking ${locationList.length} positions",
+          content: locationList.reversed.take(3).join('\n'),
+        );
+      // }
     }
+   
+
+    print("Logged: $pos");
   });
 
-  if (service is AndroidServiceInstance) {
-    service.on('setAsForeground').listen((even) {
-      service.setAsForegroundService();
-    });
+  // Listen for service control events
+  service.on('pauseTracking').listen((event) {
+    isTracking = false;
+    print("Tracking paused.");
+  });
 
-    service.on('setAsBackground').listen((even) {
-      service.setAsBackgroundService();
-    });
-
-    service.on('pauseTracking').listen((event) {
-      isTracking = false;
-      print("Tracking paused.");
-    });
-
-    service.on('resumeTracking').listen((event) {
-      isTracking = true;
-      print("Tracking resumed.");
-    });
-  }
+  service.on('resumeTracking').listen((event) {
+    isTracking = true;
+    print("Tracking resumed.");
+  });
 
   service.on('stopService').listen((event) async {
-    timer.cancel(); // Stop the periodic timer
-    await prefs.setStringList('location_history', locationList);
+    // await prefs.setStringList('location_history', locationList);
+    await prefs.setStringList('location_history', []);
+    await positionStream.cancel();
     service.stopSelf();
   });
 }
