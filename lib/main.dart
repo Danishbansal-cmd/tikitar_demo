@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:tikitar_demo/features/auth/login_screen.dart';
@@ -63,28 +64,26 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _checkAndRequestLocationPermission() async {
-    FlutterBackgroundService().invoke('stopService'); // Clear any existing
+    // Stop existing background service
+    FlutterBackgroundService().invoke('stopService');
 
-    // First request foreground location permission
-    var foregroundStatus = await Permission.locationWhenInUse.status;
-    if (foregroundStatus.isDenied || foregroundStatus.isRestricted) {
-      foregroundStatus = await Permission.locationWhenInUse.request();
+    // Step 1: Check current permission
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    // Step 2: Request once if necessary
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      permission = await Geolocator.requestPermission();
     }
 
-    // Then request background location permission (locationAlways)
-    var backgroundStatus = await Permission.locationAlways.status;
-    if (backgroundStatus.isDenied || backgroundStatus.isRestricted) {
-      backgroundStatus = await Permission.locationAlways.request();
-    }
-
-    if (foregroundStatus.isGranted) {
+    // Step 3: Check again and handle
+    if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
+      // Permission granted
       // fetch the locaion in foreground mode which is used to track the user location
       // when the app is open or in the ram (user using other app)
       await initializeForegroundBackgroundService(); // Initialize the background service
-    }
-
-    // If permanently denied, show alert
-    if (backgroundStatus.isPermanentlyDenied) {
+    } else if (permission == LocationPermission.deniedForever) {
+      // Permission permanently denied
+      
       // Check if the widget is still mounted before showing the dialog
       // it ensures that the dialog is shown only if the widget is still in the widget tree
       if (!mounted) return;
@@ -92,23 +91,22 @@ class _MyAppState extends State<MyApp> {
       if (context.mounted) {
         showDialog(
           context: context,
-          builder:
-              (_) => AlertDialog(
-                title: Text("Permission Required"),
-                content: Text(
-                  "Location permission is permanently denied. Please enable it in app settings.",
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => openAppSettings(),
-                    child: Text("Open Settings"),
-                  ),
-                  TextButton(
-                    onPressed: () => Get.back(),
-                    child: Text("Cancel"),
-                  ),
-                ],
+          builder: (_) => AlertDialog(
+            title: Text("Permission Required"),
+            content: Text(
+              "Location permission is permanently denied. Please enable it in app settings.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => openAppSettings(),
+                child: Text("Open Settings"),
               ),
+              TextButton(
+                onPressed: () => Get.back(),
+                child: Text("Cancel"),
+              ),
+            ],
+          ),
         );
       }
     }

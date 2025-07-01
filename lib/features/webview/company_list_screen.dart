@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:tikitar_demo/common/constants.dart';
 import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'dart:developer' as developer;
@@ -565,10 +566,6 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
       "categoryOptionsHTML $categoryOptionsHTML",
       name: "CompanyListScreen",
     );
-
-    // Fetch states from sharedPreferences
-    final statesData = await DataStorage.getStateNames() as List<dynamic>;
-    if (statesData.isEmpty) return;
 
     stateOptionsHTML = '<option selected>Select State</option>';
     for (int i = 0; i < statesData.length; i++) {

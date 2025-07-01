@@ -32,16 +32,6 @@ class DataStorage {
     return prefs.getString('category_options');
   }
 
-  static Future<void> saveStateNames(List stateNames) async {
-    final prefs = await _instance;
-    await prefs.setStringList('state_names', stateNames.cast<String>());
-  }
-
-  static Future<List<String>?> getStateNames() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getStringList('state_names');
-  }
-
   static Future<bool?> getShowGaugesBoolean() async {
     final prefs = await _instance;
     return prefs.getBool('show_gauges');

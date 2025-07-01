@@ -1,9 +1,11 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:tikitar_demo/common/constants.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'package:tikitar_demo/features/auth/clients_controller.dart';
 import 'package:tikitar_demo/features/auth/company_controller.dart';
@@ -391,6 +393,41 @@ class _TaskScreenState extends State<TaskScreen> {
       }
     }
 
+    // 👇 This function can be called from Flutter to reset the Meeting Form
+    function clearMeetingForm() {
+      // Clear the selected file in Flutter
+      window.flutter_inappwebview.callHandler('clearVisitedCardFile');
+
+      // first selecting the fields then resetting to default
+      let companySelects = document.querySelectorAll('select.form-select[placeholder="Company Name"]');
+      let contactPersonSelects = document.querySelectorAll('select.form-select[placeholder="Contact Person"]');
+
+      companySelects.forEach(select => {
+        select.selectedIndex = 0; // Set to first option (default)
+      });
+      contactPersonSelects.forEach(select => {
+        select.selectedIndex = 0; // Set to first option (default)
+      });
+
+      if (typeof contactMobile !== 'undefined') contactMobile.value = '';
+      if (typeof contactEmail !== 'undefined') contactEmail.value = '';
+      if (typeof commentboxField !== 'undefined') commentboxField.value = '';
+      
+      // Reset visiting card UI
+      let wrapper = document.querySelector('.uploadfilewrapper a');
+      if (wrapper) {
+        wrapper.innerHTML = `
+          <div class="uploadfilewrapper a" style="cursor:pointer;">
+            <img src="assets/img/upload.svg" alt="">
+            <span class="scanfile">Scan/Upload Visiting Card</span>
+          </div>
+        `;
+        if (typeof attachUploadClickHandler === 'function') {
+          attachUploadClickHandler(); // Re-bind the click handler
+        }
+      }
+    }
+
     let uploadClickHandler; // Global variable to store the handler reference
     // 📎 Visiting Card Upload Click Handler for Flutter-only environment
     function attachUploadClickHandler() {
@@ -526,7 +563,9 @@ class _TaskScreenState extends State<TaskScreen> {
         setState(() {
           _visitedCardFile = selectedFile!;
         });
-        final safeFileName = fileName.replaceAll("'", "\\'").replaceAll('"', '\\"');
+        final safeFileName = fileName
+            .replaceAll("'", "\\'")
+            .replaceAll('"', '\\"');
 
         // Inject JavaScript code to update the UI and handle the remove functionality
         _controller?.evaluateJavascript(
@@ -604,6 +643,12 @@ class _TaskScreenState extends State<TaskScreen> {
       }
     }
 
+    // Pause the background service tracking to avoid conflict
+    FlutterBackgroundService().invoke('pauseTracking');
+    await Future.delayed(
+      const Duration(milliseconds: 2000),
+    ); // give isolate time to react
+
     // Check and request location permission
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
@@ -616,6 +661,7 @@ class _TaskScreenState extends State<TaskScreen> {
 
     if (permission == LocationPermission.deniedForever ||
         permission == LocationPermission.denied) {
+      developer.log("permission denied");
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Location permission denied")));
@@ -625,13 +671,31 @@ class _TaskScreenState extends State<TaskScreen> {
           resetSubmitButton();
         ''',
       );
+      // Ensure background tracking resumes
+      FlutterBackgroundService().invoke('resumeTracking');
       return;
     }
 
-    // Get current location
-    Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
+    Position? position;
+    try {
+      position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 15),
+      );
+    } catch (e) {
+      print("Live GPS location failed, trying fallback...");
+      position = await Geolocator.getLastKnownPosition();
+    }
+
+    if (position == null) {
+      // gracefully exit
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Unable to get location. Please try again.")),
+      );
+      await _controller?.evaluateJavascript(source: 'resetSubmitButton();');
+      FlutterBackgroundService().invoke('resumeTracking');
+      return;
+    }
 
     final enrichedFormData = {
       ...formData,
@@ -639,14 +703,20 @@ class _TaskScreenState extends State<TaskScreen> {
       "longitude": position.longitude,
     };
 
+    developer.log("enrichedFormData $enrichedFormData", name: "TaskScreen");
+
     // makes sure the widget is mounted or in the context
     if (!mounted) return;
 
     if (_visitedCardFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Please upload a visiting card before submitting.")),
+        SnackBar(
+          content: Text("Please upload a visiting card before submitting."),
+        ),
       );
       await _controller?.evaluateJavascript(source: 'resetSubmitButton();');
+      // Ensure background tracking resumes
+      FlutterBackgroundService().invoke('resumeTracking');
       return;
     }
 
@@ -670,7 +740,7 @@ class _TaskScreenState extends State<TaskScreen> {
 
     // makes sure the widget is mounted or in the context
     if (!mounted) return;
-    if(response['status'] == true){
+    if (response['status'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Meeting submitted successfully!")),
       );
@@ -680,35 +750,8 @@ class _TaskScreenState extends State<TaskScreen> {
         // reset the form submitting button
         resetSubmitButton();
 
-        // Clear the selected file in Flutter
-        window.flutter_inappwebview.callHandler('clearVisitedCardFile');
-
-        // first selecting the fields then resetting to default
-        const companySelects = document.querySelectorAll('select.form-select[placeholder="Company Name"]');
-        const contactPersonSelects = document.querySelectorAll('select.form-select[placeholder="Contact Person"]');
-
-        companySelects.forEach(select => {
-          select.selectedIndex = 0; // Set to first option (default)
-        });
-        contactPersonSelects.forEach(select => {
-          select.selectedIndex = 0; // Set to first option (default)
-        });
-
-        contactMobile.value = '';
-        contactEmail.value = '';
-        commentboxField.value = '';
-        
-        // Reset visiting card UI
-        const wrapper = document.querySelector('.uploadfilewrapper a');
-        if (wrapper) {
-          wrapper.innerHTML = `
-            <div class="uploadfilewrapper a" style="cursor:pointer;">
-              <img src="assets/img/upload.svg" alt="">
-              <span class="scanfile">Scan/Upload Visiting Card</span>
-            </div>
-          `;
-          attachUploadClickHandler(); // Re-bind the click handler
-        }
+        // Clear the Meeting Form using the defined Function
+        clearMeetingForm();
       """;
 
       await _controller?.evaluateJavascript(
@@ -716,17 +759,20 @@ class _TaskScreenState extends State<TaskScreen> {
           $clearFormJS
         ''',
       );
-    }else{
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Failed to submit meeting, Try Again!")));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to submit meeting, Try Again!")),
+      );
       await _controller?.evaluateJavascript(
         source: '''
           // reset the form submitting button
           resetSubmitButton();
         ''',
-      );  
+      );
     }
+
+    // Resume background tracking
+    FlutterBackgroundService().invoke('resumeTracking');
   }
 
   Future<void> _fetchStoredStaticData() async {
@@ -747,10 +793,6 @@ class _TaskScreenState extends State<TaskScreen> {
         "categoryOptionsHTML $categoryOptionsHTML",
         name: "TaskScreen",
       );
-
-      // Fetch states from sharedPreferences
-      final statesData = await DataStorage.getStateNames() as List<dynamic>;
-      if (statesData.isEmpty) return;
 
       stateOptionsHTML = '<option selected>Select State</option>';
       for (int i = 0; i < statesData.length; i++) {

@@ -77,16 +77,10 @@ class ApiBase {
     developer.log("GET headers: $headers", name: 'ApiBase');
 
     final response = await http.get(uri, headers: headers);
+    developer.log("GET $endpoint: ${response.body}", name: 'ApiBase');
+    developer.log("GET $endpoint: ${response.statusCode}", name: 'ApiBase');
 
     if (response.statusCode == 200) {
-      developer.log(
-        "Raw response from get body: ${response.body}",
-        name: 'ApiBase',
-      );
-      developer.log(
-        "Raw response from get statusCode: ${response.statusCode}",
-        name: 'ApiBase',
-      );
       try {
         final decoded = jsonDecode(response.body);
         developer.log("GET response decoded: $decoded", name: 'ApiBase');
@@ -96,10 +90,6 @@ class ApiBase {
         throw Exception('Invalid JSON response');
       }
     } else {
-      developer.log(
-        "GET Error: ${response.statusCode} - ${response.body}",
-        name: 'ApiBase',
-      );
       throw Exception('Failed to GET: ${response.statusCode}');
     }
   }
@@ -120,17 +110,19 @@ class ApiBase {
           ..headers['Authorization'] = 'Bearer $authToken'
           ..fields.addAll(body);
 
-    final file = await http.MultipartFile.fromPath(
-      filedataKey,
-      filedata.path,
-    );
+    final file = await http.MultipartFile.fromPath(filedataKey, filedata.path);
     request.files.add(file);
+
+    developer.log("multipartPost Uri: $uri", name: 'ApiBase');
+    developer.log("multipartPost Body: $body", name: 'ApiBase');
+    developer.log("multipartPost request: $request", name: 'ApiBase');
 
     final response = await request.send();
     final responseBody = await response.stream.bytesToString();
+    developer.log("multipartPost $endpoint: $responseBody", name: 'ApiBase');
+    developer.log("multipartPost $endpoint: ${response.statusCode}", name: 'ApiBase');
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      developer.log("multipartPost response: $responseBody", name: 'ApiBase');
       return responseBody;
     } else {
       developer.log(
