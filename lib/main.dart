@@ -13,8 +13,14 @@ import 'package:tikitar_demo/features/webview/dashboard_screen.dart';
 import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
 import 'package:tikitar_demo/features/webview/my_profile_screen.dart';
 import 'package:tikitar_demo/features/webview/task_screen.dart';
-
+import 'package:clarity_flutter/clarity_flutter.dart';
 void main() async {
+  final config = ClarityConfig(
+    projectId: "s8jr5cb4ko",
+    // for testing otherwise use "LogLevel.None"
+    logLevel: LogLevel.Verbose // Note: Use "LogLevel.Verbose" value while testing to debug initialization issues.
+  );
+
   WidgetsFlutterBinding.ensureInitialized(); // Ensure this line is there
   //You're calling SharedPreferences.getInstance() before Flutter is fully ready,
   //most likely before WidgetsFlutterBinding.ensureInitialized() is called.
@@ -27,7 +33,12 @@ void main() async {
     DeviceOrientation.portraitDown, // optional: allows upside-down portrait
   ]);
 
-  runApp(MyApp());
+  runApp(
+    ClarityWidget(
+      app: MyApp(),
+      clarityConfig: config,
+    )
+  );
 }
 
 class MyApp extends StatefulWidget {

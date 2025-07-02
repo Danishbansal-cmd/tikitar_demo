@@ -31,6 +31,7 @@ dependencies:
   firebase_analytics: ^11.4.6
   get: ^4.7.2
   flutter_background_service: ^5.1.0
+  clarity_flutter: ^1.0.0
 
 dev_dependencies:
   flutter_test:
