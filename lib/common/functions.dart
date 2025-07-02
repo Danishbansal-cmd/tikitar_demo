@@ -1,7 +1,6 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:tikitar_demo/features/auth/auth_controller.dart';
 import 'dart:developer' as developer;
-
 class Functions {
   /// Escapes strings to safely inject into JavaScript
   static String escapeJS(String value) {
@@ -91,5 +90,28 @@ class Functions {
       """;
     }
     await controller.evaluateJavascript(source: currentMonthTargetJs);
+  }
+
+  static Future<void> fetchBonusMetricData({required InAppWebViewController controller}) async{
+    // for Bonus Metric Value
+    String bonusMetricJS = '';
+    final bonusMetricData = await AuthController.fetchBonusMetric();
+    if (bonusMetricData['status'] == true) {
+      developer.log(
+        "bonusMetricData: $bonusMetricData",
+        name: "fetchIndividualData",
+      );
+      final targetCompletion = int.tryParse(
+        bonusMetricData['data']['target_completion'].toString(),
+        ) ??
+        0;
+      bonusMetricJS = """
+        document.getElementById('bonusMetricGauge').style.display = 'block'; 
+        var insertBonusMetricValue = document.getElementById('bonusMetricValue');
+        insertBonusMetricValue.textContent = "$targetCompletion";
+        updateBonusMetricValue();
+      """;
+    }
+    await controller.evaluateJavascript(source: bonusMetricJS);
   }
 }

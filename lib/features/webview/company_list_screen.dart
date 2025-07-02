@@ -10,7 +10,6 @@ import 'dart:developer' as developer;
 import 'package:tikitar_demo/features/auth/clients_controller.dart';
 import 'package:tikitar_demo/features/auth/company_controller.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
-import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
 
 class CompanyListScreen extends StatefulWidget {
   const CompanyListScreen({super.key});
@@ -25,6 +24,7 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
   String categoryOptionsHTML = '';
   String stateOptionsHTML = '';
   bool? fetchShowGaugesBoolFromPreferences;
+  bool? fetchShowBonusMetricBoolFromPreferences;
   int daysInMonth = 0;
 
   @override
@@ -92,6 +92,11 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
         if (fetchShowGaugesBoolFromPreferences == true) {
           Functions.fetchMonthlyData(controller: controller, daysInMonth: daysInMonth);
         }
+
+        // show the BonusMetric gauge, with the data from calling the api
+        if (fetchShowBonusMetricBoolFromPreferences == true) {
+          Functions.fetchBonusMetricData(controller: controller);
+        }
       },
     );
   }
@@ -113,6 +118,15 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
       name: "CompanyListScreen",
     );
 
+    // Get BonusMetric gauge data from SharedPreferences, 
+    // to finally decide whether to show BonusMetric gauge or not
+    fetchShowBonusMetricBoolFromPreferences =
+        await DataStorage.getShowBonusMetricBoolean();
+    developer.log(
+      "Extracted fetchShowBonusMetricBoolFromPreferences: $fetchShowBonusMetricBoolFromPreferences",
+      name: "CompanyListScreen",
+    );
+
     // Get the current year and month
     final DateTime now = DateTime.now();
     final int currentYear = now.year;
@@ -124,9 +138,6 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
   Future<void> fetchCompanies({
     required InAppWebViewController controller,
   }) async {
-    // ✅ Show loading spinner immediately
-    await showLoadingSpinner(controller);
-
     String companyRowJS = '''
       <tr>
         <th>Rank</th>
@@ -330,10 +341,6 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
   Future<void> injectMoreJS() async {
     await _controller?.evaluateJavascript(
       source: """
-        // Remove loading spinner
-        const loaderToRemove = document.getElementById('dataLoader');
-        if (loaderToRemove) loaderToRemove.remove();        
-        
         const fieldIds = [
           'company', 'city', 'zip', 'branchname', 'addressline',
           'fullname', 'mobile', 'whatsappnumber',
@@ -479,6 +486,10 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
             }
           }, 300);
         });
+
+        //❌ Remove loading spinner
+        var loaderToRemove = document.getElementById('dataLoader');
+        if (loaderToRemove) loaderToRemove.remove();        
       """,
     );
   }

@@ -9,6 +9,7 @@ import 'package:tikitar_demo/common/constants.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'package:tikitar_demo/features/data/local/token_storage.dart';
 import 'package:tikitar_demo/features/other/user_meetings.dart';
+import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
 import 'dart:developer' as developer;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -111,13 +112,11 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                                 ),
                                 actions: [
                                   TextButton(
-                                    onPressed:
-                                        () => Get.back(result: false),
+                                    onPressed: () => Get.back(result: false),
                                     child: Text("Cancel"),
                                   ),
                                   TextButton(
-                                    onPressed:
-                                        () => Get.back(result: true),
+                                    onPressed: () => Get.back(result: true),
                                     child: Text("Sure"),
                                   ),
                                 ],
@@ -128,6 +127,8 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                           if (confirmed == true) {
                             await TokenStorage.clearToken();
                             await DataStorage.clearUserData();
+                            await DataStorage.clearShowGaugesBoolean();
+                            await DataStorage.clearShowBonusMetricBoolean();
                             Get.offAllNamed('/login');
                           }
                           await controller.evaluateJavascript(
@@ -160,7 +161,9 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                       developer.log("I came here");
                       developer.log("Clicked userId: $userId");
 
-                      Get.to(() => UserMeetings(userId: userId, userName: userName));
+                      Get.to(
+                        () => UserMeetings(userId: userId, userName: userName),
+                      );
                     },
                   );
 
@@ -182,9 +185,13 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                     },
                   );
                 },
+                onLoadStart: (controller, url) {
+                  showLoadingSpinner(controller); // ✅ Show loader when navigation starts
+                },
                 onLoadStop: (controller, url) async {
                   // it disables the user select
-                  await controller.evaluateJavascript(source: """
+                  await controller.evaluateJavascript(
+                    source: """
                     const style = document.createElement('style');
                     style.innerHTML = `
                       * {
@@ -195,7 +202,8 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                       }
                     `;
                     document.head.appendChild(style);
-                  """);
+                  """,
+                  );
 
                   // Check if the widget is still mounted before proceeding
                   // A State object is considered "mounted" when it is associated
@@ -267,6 +275,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                       ),
                     );
 
+                    // ✅ Call the external callback if provided
                     widget.onLoadStop?.call(controller, url);
                   } catch (e) {
                     developer.log(

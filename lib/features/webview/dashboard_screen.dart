@@ -41,9 +41,6 @@ class _DashboardScreenState extends State<DashboardScreen>{
       url: "dashboard.php",
       title: "Dashboard",
       onLoadStop: (controller, url) async {
-        // Show loading spinner immediately
-        await showLoadingSpinner(controller);
-
         // Handle the dashboard load logic
         await handleDashboardLoad(controller);
       },
@@ -169,16 +166,16 @@ class _DashboardScreenState extends State<DashboardScreen>{
   }) async {
     try {
       final fullJS = """
-          // Remove loading spinner
-          const loaderToRemove = document.getElementById('dataLoader');
-          if (loaderToRemove) loaderToRemove.remove();
-          
           const table = document.querySelector('.reporttable');
           const rows = table.querySelectorAll('tr');
           for (let i = rows.length - 1; i > 0; i--) {
             table.deleteRow(i);
           }
           table.insertAdjacentHTML('beforeend', `$tableRowsDataJS`); 
+          
+          //❌ Remove loading spinner
+          var loaderToRemove = document.getElementById('dataLoader');
+          if (loaderToRemove) loaderToRemove.remove(); 
         """;
       await controller.evaluateJavascript(source: fullJS);
     } catch (e) {
@@ -234,14 +231,23 @@ class _DashboardScreenState extends State<DashboardScreen>{
         name: "fetchIndividualData",
       );
       final targetCompletion = int.tryParse(
-        personalTargetData['data']['target_completion'].toString(),
+        bonusMetricData['data']['target_completion'].toString(),
         ) ??
         0;
-      bonusMetricJS = """
-        var insertBonusMetricValue = document.getElementById('bonusMetricValue');
-        insertBonusMetricValue.textContent = "$targetCompletion";
-        updateBonusMetricValue();
-      """;
+      if(targetCompletion <= 0){
+        DataStorage.saveShowBonusMetricBoolean(false);
+        bonusMetricJS = """
+          updateBonusMetricValue();
+        """;
+      }else{
+        DataStorage.saveShowBonusMetricBoolean(true);
+        bonusMetricJS = """
+          document.getElementById('bonusMetricGauge').style.display = 'block'; 
+          var insertBonusMetricValue = document.getElementById('bonusMetricValue');
+          insertBonusMetricValue.textContent = "$targetCompletion";
+          updateBonusMetricValue();
+        """;
+      }
     } else {
       bonusMetricJS = """
         updateBonusMetricValue();

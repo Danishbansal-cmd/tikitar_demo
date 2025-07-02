@@ -19,6 +19,7 @@ class MeetingListScreen extends StatefulWidget {
 class _MeetingListScreenState extends State<MeetingListScreen> {
   int? userId;
   bool? fetchShowGaugesBoolFromPreferences;
+  bool? fetchShowBonusMetricBoolFromPreferences;
   int daysInMonth = 0;
 
   @override
@@ -44,6 +45,11 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
         if (fetchShowGaugesBoolFromPreferences == true) {
           Functions.fetchMonthlyData(controller: controller, daysInMonth: daysInMonth);
         }
+
+        // show the BonusMetric gauge, with the data from calling the api
+        if (fetchShowBonusMetricBoolFromPreferences == true) {
+          Functions.fetchBonusMetricData(controller: controller);
+        }
       },
     );
   }
@@ -66,6 +72,15 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
       name: "MeetingListScreen",
     );
     
+    // Get BonusMetric gauge data from SharedPreferences, 
+    // to finally decide whether to show BonusMetric gauge or not
+    fetchShowBonusMetricBoolFromPreferences =
+        await DataStorage.getShowBonusMetricBoolean();
+    developer.log(
+      "Extracted fetchShowBonusMetricBoolFromPreferences: $fetchShowBonusMetricBoolFromPreferences",
+      name: "MeetingListScreen",
+    );
+    
     // Get the current year and month
     final DateTime now = DateTime.now();
     final int currentYear = now.year;
@@ -78,32 +93,32 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
 Future<void> showLoadingSpinner(InAppWebViewController controller) async {
   await controller.evaluateJavascript(
     source: """
-    if (!document.getElementById('dataLoader')) {
-      const loader = document.createElement('div');
-      loader.id = 'dataLoader';
-      loader.style.position = 'fixed';
-      loader.style.top = '0';
-      loader.style.left = '0';
-      loader.style.width = '100%';
-      loader.style.height = '100%';
-      loader.style.display = 'flex';
-      loader.style.justifyContent = 'center';
-      loader.style.alignItems = 'center';
-      loader.style.background = 'rgba(255, 255, 255, 0.7)';
-      loader.style.zIndex = '2000';
-      loader.innerHTML = '<div style="width: 50px; height: 50px; border: 6px solid #ccc; border-top: 6px solid #fecc00; border-radius: 50%; animation: spin 1s linear infinite;"></div>';
+      if (!document.getElementById('dataLoader')) {
+        const loader = document.createElement('div');
+        loader.id = 'dataLoader';
+        loader.style.position = 'fixed';
+        loader.style.top = '0';
+        loader.style.left = '0';
+        loader.style.width = '100%';
+        loader.style.height = '100%';
+        loader.style.display = 'flex';
+        loader.style.justifyContent = 'center';
+        loader.style.alignItems = 'center';
+        loader.style.background = 'rgba(255, 255, 255, 0.7)';
+        loader.style.zIndex = 2000;
+        loader.innerHTML = '<div style="width: 50px; height: 50px; border: 6px solid #ccc; border-top: 6px solid #fecc00; border-radius: 50%; animation: spin 1s linear infinite;"></div>';
 
-      const style = document.createElement('style');
-      style.innerHTML = \`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      \`;
-      document.head.appendChild(style);
+        const style = document.createElement('style');
+        style.innerHTML = \`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        \`;
+        document.head.appendChild(style);
 
-      document.body.appendChild(loader);
-    }
+        document.body.appendChild(loader);
+      }
   """,
   );
 }
@@ -125,9 +140,6 @@ Future<void> fetchAndInjectMeetings({
     </tr>
   ''';
   try {
-    // ✅ Show loading spinner immediately
-    await showLoadingSpinner(controller);
-
     developer.log("User ID being passed: $userId", name: "$pageName");
     developer.log("Filter being passed: $filter", name: "$pageName");
     developer.log(
@@ -269,11 +281,7 @@ Future<void> injectTableDataWithComments({
   String? pageName,
 }) async {
   try {
-    final fullJS = """
-    // Remove loading spinner
-    var loaderToRemove = document.getElementById('dataLoader');
-    if (loaderToRemove) loaderToRemove.remove();
-    
+    final fullJS = """   
     var table = document.querySelector('.reporttable');
     if (table) {
       table.innerHTML = ''; // cleanly clear all rows
@@ -345,6 +353,10 @@ Future<void> injectTableDataWithComments({
         };
       });
     });
+
+    //❌ Remove loading spinner
+    var loaderToRemove = document.getElementById('dataLoader');
+    if (loaderToRemove) loaderToRemove.remove();
   """;
 
     await controller.evaluateJavascript(source: fullJS);

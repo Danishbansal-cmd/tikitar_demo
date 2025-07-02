@@ -464,6 +464,11 @@ class _TaskScreenState extends State<TaskScreen> {
     // Initial attach
     // 🔄Run the click handler attachment on page load or whenever needed
     attachUploadClickHandler();
+
+
+    //❌ Remove loading spinner
+    var loaderToRemove = document.getElementById('dataLoader');
+    if (loaderToRemove) loaderToRemove.remove();
   """;
   }
 
