@@ -1,4 +1,4 @@
-package com.example.tikitar_demo
+package com.trackify.tikitech
 
 import io.flutter.embedding.android.FlutterActivity
 
