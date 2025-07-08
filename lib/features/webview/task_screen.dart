@@ -948,8 +948,10 @@ class _TaskScreenState extends State<TaskScreen> {
           final contactEmail = Functions.escapeJS(
             person['contact_email'].toString(),
           );
+          // fetching the "whatsapp" feild from the "person" object
+          // and attaching it to the "data-contact_mobile" property, used in sending the "meetings" api
           final contactMobile = Functions.escapeJS(
-            person['contact_phone'].toString(),
+            person['whatsapp'].toString(),
           );
 
           contactPersonOptionsHTML +=
