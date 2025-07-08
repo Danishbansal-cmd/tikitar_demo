@@ -7,6 +7,21 @@ class DataStorage {
     return _prefs ??= await SharedPreferences.getInstance();
   }
 
+  static Future<void> saveToken(String token) async {
+    final prefs = await _instance;
+    await prefs.setString('auth_token', token);
+  }
+
+  static Future<String?> getToken() async {
+    final prefs = await _instance;
+    return prefs.getString('auth_token');
+  }
+
+  static Future<void> clearToken() async {
+    final prefs = await _instance;
+    await prefs.remove('auth_token');
+  }
+
   static Future<void> saveUserData(String data) async {
     final prefs = await _instance;
     await prefs.setString('user_data', data);

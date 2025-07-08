@@ -7,8 +7,8 @@ import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
 import 'dart:developer' as developer;
 
-import 'package:tikitar_demo/features/auth/clients_controller.dart';
-import 'package:tikitar_demo/features/auth/company_controller.dart';
+import 'package:tikitar_demo/controllers/clients_controller.dart';
+import 'package:tikitar_demo/controllers/company_controller.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 
 class CompanyListScreen extends StatefulWidget {
@@ -90,7 +90,10 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
 
         // show the middle gauges as there are some persons that are reporting to it
         if (fetchShowGaugesBoolFromPreferences == true) {
-          Functions.fetchMonthlyData(controller: controller, daysInMonth: daysInMonth);
+          Functions.fetchMonthlyData(
+            controller: controller,
+            daysInMonth: daysInMonth,
+          );
         }
 
         // show the BonusMetric gauge, with the data from calling the api
@@ -118,7 +121,7 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
       name: "CompanyListScreen",
     );
 
-    // Get BonusMetric gauge data from SharedPreferences, 
+    // Get BonusMetric gauge data from SharedPreferences,
     // to finally decide whether to show BonusMetric gauge or not
     fetchShowBonusMetricBoolFromPreferences =
         await DataStorage.getShowBonusMetricBoolean();
@@ -195,7 +198,11 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
           ),
         ),
       );
-      return;
+      companyRowJS += """
+        <tr>
+          <td colspan="4" style="text-align: center; color: red;">No Company Found, try adding it!</td>
+        </tr>
+      """;
     }
 
     _injectCompanies(companyRowJS: companyRowJS);

@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:tikitar_demo/core/network/api_base.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
-import 'package:tikitar_demo/features/data/local/token_storage.dart';
 
 class AuthController {
   
@@ -18,7 +17,7 @@ class AuthController {
       if ((response['status'] == true || response['status'] == "true") &&
           response['data']?['token'] != null) {
         ApiBase.setToken(response['data']['token']);
-        await TokenStorage.saveToken(response['data']['token']);
+        await DataStorage.saveToken(response['data']['token']);
         await DataStorage.saveUserData(jsonEncode(response['data']['user']));
       }
 

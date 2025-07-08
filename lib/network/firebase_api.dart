@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:tikitar_demo/features/data/local/token_storage.dart';
+import 'package:tikitar_demo/features/data/local/data_strorage.dart';
+
 
 Future<void> handleBackgroundMessage(RemoteMessage message) async {
   developer.log(
@@ -33,7 +34,7 @@ class FirebaseApi {
     );
     if (message.data.containsKey("type") &&
         message.data.containsKey("component_id")) {
-      if (await TokenStorage.getToken() != null &&
+      if (await DataStorage.getToken() != null &&
           message.data["type"] == "task") {
         // if (fromTerminated == false) {
         //   Navigator.of(context).pushNamedAndRemoveUntil(

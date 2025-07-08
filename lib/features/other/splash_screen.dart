@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tikitar_demo/core/network/api_base.dart';
-import 'package:tikitar_demo/features/data/local/token_storage.dart';
+import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,11 +14,14 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(const Duration(milliseconds: 300));
+      _checkLoginStatus();
+    });
   }
 
   Future<void> _checkLoginStatus() async {
-    final token = await TokenStorage.getToken();
+    final token = await DataStorage.getToken();
 
     if (token != null) {
       ApiBase.setToken(token);

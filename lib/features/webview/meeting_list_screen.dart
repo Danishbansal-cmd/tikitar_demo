@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:tikitar_demo/common/functions.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
-import 'package:tikitar_demo/features/auth/meetings_controller.dart';
+import 'package:tikitar_demo/controllers/meetings_controller.dart';
 import 'dart:developer' as developer;
 
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';

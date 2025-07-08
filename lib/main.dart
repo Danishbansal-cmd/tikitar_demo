@@ -14,11 +14,15 @@ import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
 import 'package:tikitar_demo/features/webview/my_profile_screen.dart';
 import 'package:tikitar_demo/features/webview/task_screen.dart';
 import 'package:clarity_flutter/clarity_flutter.dart';
+import 'dart:io' show Platform;
+
 void main() async {
   final config = ClarityConfig(
     projectId: "s8jr5cb4ko",
     // for testing otherwise use "LogLevel.None"
-    logLevel: LogLevel.Verbose // Note: Use "LogLevel.Verbose" value while testing to debug initialization issues.
+    logLevel:
+        LogLevel
+            .Verbose, // Note: Use "LogLevel.Verbose" value while testing to debug initialization issues.
   );
 
   WidgetsFlutterBinding.ensureInitialized(); // Ensure this line is there
@@ -33,12 +37,7 @@ void main() async {
     DeviceOrientation.portraitDown, // optional: allows upside-down portrait
   ]);
 
-  runApp(
-    ClarityWidget(
-      app: MyApp(),
-      clarityConfig: config,
-    )
-  );
+  runApp(ClarityWidget(app: MyApp(), clarityConfig: config));
 }
 
 class MyApp extends StatefulWidget {
@@ -49,11 +48,12 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  
   @override
   void initState() {
     super.initState();
-    _checkAndRequestLocationPermission();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndRequestLocationPermission();
+    });
   }
 
   @override
@@ -77,24 +77,31 @@ class _MyAppState extends State<MyApp> {
   Future<void> _checkAndRequestLocationPermission() async {
     // Stop existing background service
     FlutterBackgroundService().invoke('stopService');
+    LocationPermission? permission;
 
     // Step 1: Check current permission
-    LocationPermission permission = await Geolocator.checkPermission();
+    if (Platform.isAndroid || Platform.isIOS) {
+      permission = await Geolocator.checkPermission();
+    }
 
     // Step 2: Request once if necessary
-    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
       permission = await Geolocator.requestPermission();
     }
 
     // Step 3: Check again and handle
-    if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
+    if (permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse) {
       // Permission granted
       // fetch the locaion in foreground mode which is used to track the user location
       // when the app is open or in the ram (user using other app)
-      await initializeForegroundBackgroundService(); // Initialize the background service
+      if (!(await FlutterBackgroundService().isRunning())) {
+        await initializeForegroundBackgroundService(); // Initialize the background service
+      }
     } else if (permission == LocationPermission.deniedForever) {
       // Permission permanently denied
-      
+
       // Check if the widget is still mounted before showing the dialog
       // it ensures that the dialog is shown only if the widget is still in the widget tree
       if (!mounted) return;
@@ -102,22 +109,23 @@ class _MyAppState extends State<MyApp> {
       if (context.mounted) {
         showDialog(
           context: context,
-          builder: (_) => AlertDialog(
-            title: Text("Permission Required"),
-            content: Text(
-              "Location permission is permanently denied. Please enable it in app settings.",
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => openAppSettings(),
-                child: Text("Open Settings"),
+          builder:
+              (_) => AlertDialog(
+                title: Text("Permission Required"),
+                content: Text(
+                  "Location permission is permanently denied. Please enable it in app settings.",
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => openAppSettings(),
+                    child: Text("Open Settings"),
+                  ),
+                  TextButton(
+                    onPressed: () => Get.back(),
+                    child: Text("Cancel"),
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: () => Get.back(),
-                child: Text("Cancel"),
-              ),
-            ],
-          ),
         );
       }
     }

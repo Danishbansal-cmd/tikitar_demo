@@ -7,9 +7,9 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tikitar_demo/common/constants.dart';
 import 'package:tikitar_demo/common/webview_common_screen.dart';
-import 'package:tikitar_demo/features/auth/clients_controller.dart';
-import 'package:tikitar_demo/features/auth/company_controller.dart';
-import 'package:tikitar_demo/features/auth/meetings_controller.dart';
+import 'package:tikitar_demo/controllers/clients_controller.dart';
+import 'package:tikitar_demo/controllers/company_controller.dart';
+import 'package:tikitar_demo/controllers/meetings_controller.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
@@ -27,7 +27,7 @@ class _TaskScreenState extends State<TaskScreen> {
   File? _visitedCardFile; // Variable to hold the selected file
   String categoryOptionsHTML = ''; // store the categoryOptions
   String stateOptionsHTML = ''; // store the stateOptions
-  String companyOptionsHTML = ''; // store the companyOptions
+  String companyOptionsHTML = '<option value="0">No Company Found</option>'; // store the companyOptions
   int? userId;
 
   @override

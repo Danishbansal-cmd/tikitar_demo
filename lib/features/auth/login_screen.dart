@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:tikitar_demo/features/auth/auth_controller.dart';
+import 'package:tikitar_demo/controllers/auth_controller.dart';
 
 
 class LoginScreen extends StatefulWidget {
@@ -55,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Container(
                   padding: const EdgeInsets.all(50),
                   child: Image.asset(
-                    'assets/images/ic_launcher.png',
+                    'assets/images/app-icon.png',
                     height: 200,
                     width: 200,
                   ),

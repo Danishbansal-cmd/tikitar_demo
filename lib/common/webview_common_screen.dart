@@ -7,7 +7,6 @@ import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:tikitar_demo/common/constants.dart';
 import 'package:tikitar_demo/features/data/local/data_strorage.dart';
-import 'package:tikitar_demo/features/data/local/token_storage.dart';
 import 'package:tikitar_demo/features/other/user_meetings.dart';
 import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
 import 'dart:developer' as developer;
@@ -125,7 +124,7 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                           );
 
                           if (confirmed == true) {
-                            await TokenStorage.clearToken();
+                            await DataStorage.clearToken();
                             await DataStorage.clearUserData();
                             await DataStorage.clearShowGaugesBoolean();
                             await DataStorage.clearShowBonusMetricBoolean();

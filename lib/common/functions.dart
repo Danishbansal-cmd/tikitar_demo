@@ -1,5 +1,5 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:tikitar_demo/features/auth/auth_controller.dart';
+import 'package:tikitar_demo/controllers/auth_controller.dart';
 import 'dart:developer' as developer;
 class Functions {
   /// Escapes strings to safely inject into JavaScript
