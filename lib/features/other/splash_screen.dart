@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tikitar_demo/core/network/api_base.dart';
-import 'package:tikitar_demo/features/data/local/data_strorage.dart';
+import 'package:tikitar_demo/core/local/data_strorage.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

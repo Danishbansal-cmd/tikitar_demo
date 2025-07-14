@@ -5,15 +5,15 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:tikitar_demo/common/constants.dart';
-import 'package:tikitar_demo/common/webview_common_screen.dart';
+import 'package:tikitar_demo/features/common/constants.dart';
+import 'package:tikitar_demo/features/common/view/pages/webview_common_screen.dart';
 import 'package:tikitar_demo/controllers/clients_controller.dart';
 import 'package:tikitar_demo/controllers/company_controller.dart';
 import 'package:tikitar_demo/controllers/meetings_controller.dart';
-import 'package:tikitar_demo/features/data/local/data_strorage.dart';
+import 'package:tikitar_demo/core/local/data_strorage.dart';
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
-import 'package:tikitar_demo/common/functions.dart';
+import 'package:tikitar_demo/features/common/functions.dart';
 import 'dart:io'; // Add import for File handling
 import 'dart:developer' as developer;
 

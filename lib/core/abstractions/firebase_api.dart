@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:tikitar_demo/features/data/local/data_strorage.dart';
+import 'package:tikitar_demo/core/local/data_strorage.dart';
 
 
 Future<void> handleBackgroundMessage(RemoteMessage message) async {

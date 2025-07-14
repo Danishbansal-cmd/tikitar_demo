@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
-import 'package:tikitar_demo/common/webview_common_screen.dart';
-import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
+import 'package:tikitar_demo/features/common/view/pages/webview_common_screen.dart';
+import 'package:tikitar_demo/features/meetings/view/pages/meeting_list_screen.dart';
 
 class UserMeetings extends StatefulWidget {
   // these two are the variables that are passed from the dashboard screen

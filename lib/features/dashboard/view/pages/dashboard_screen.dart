@@ -4,15 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tikitar_demo/common/functions.dart';
-import 'package:tikitar_demo/common/webview_common_screen.dart';
+import 'package:tikitar_demo/features/common/functions.dart';
+import 'package:tikitar_demo/features/common/view/pages/webview_common_screen.dart';
 import 'package:tikitar_demo/controllers/auth_controller.dart';
 import 'package:tikitar_demo/controllers/categories_controller.dart';
 import 'package:tikitar_demo/controllers/user_controller.dart';
-import 'package:tikitar_demo/features/data/local/data_strorage.dart';
-import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
+import 'package:tikitar_demo/core/local/data_strorage.dart';
+import 'package:tikitar_demo/features/meetings/view/pages/meeting_list_screen.dart';
 import 'dart:developer' as developer;
-import 'package:tikitar_demo/network/firebase_api.dart';
+import 'package:tikitar_demo/core/abstractions/firebase_api.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});

@@ -32,6 +32,7 @@ dependencies:
   get: ^4.7.2
   flutter_background_service: ^5.1.0
   clarity_flutter: ^1.0.0
+  provider: ^6.1.5
 
 dev_dependencies:
   flutter_test:
@@ -61,7 +62,4 @@ flutter:
 
   # Add the assets section here
   assets:
-    - assets/images/tikitar-logo.png
-    - assets/images/tikitar-bar.png
-    - assets/images/app-icon.png
-    - assets/svg/warning.svg
+    - assets/images/

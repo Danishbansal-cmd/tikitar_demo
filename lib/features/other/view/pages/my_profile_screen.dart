@@ -3,8 +3,8 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:tikitar_demo/common/functions.dart';
-import 'package:tikitar_demo/common/webview_common_screen.dart';
+import 'package:tikitar_demo/features/common/functions.dart';
+import 'package:tikitar_demo/features/common/view/pages/webview_common_screen.dart';
 import 'package:tikitar_demo/core/network/api_base.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:qr_flutter/qr_flutter.dart';

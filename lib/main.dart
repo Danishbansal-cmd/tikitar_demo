@@ -5,16 +5,20 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:tikitar_demo/features/auth/login_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:tikitar_demo/features/auth/view/pages/login_screen.dart';
 import 'package:tikitar_demo/features/other/foregroundBackground.dart';
 import 'package:tikitar_demo/features/other/splash_screen.dart';
-import 'package:tikitar_demo/features/webview/company_list_screen.dart';
-import 'package:tikitar_demo/features/webview/dashboard_screen.dart';
-import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
-import 'package:tikitar_demo/features/webview/my_profile_screen.dart';
-import 'package:tikitar_demo/features/webview/task_screen.dart';
+import 'package:tikitar_demo/features/companies/view/pages/company_list_screen.dart';
+import 'package:tikitar_demo/features/dashboard/view/pages/dashboard_screen.dart';
+import 'package:tikitar_demo/features/meetings/view/pages/meeting_list_screen.dart';
+import 'package:tikitar_demo/features/other/view/pages/my_profile_screen.dart';
+import 'package:tikitar_demo/features/task/view/pages/task_screen.dart';
 import 'package:clarity_flutter/clarity_flutter.dart';
 import 'dart:io' show Platform;
+
+import 'package:tikitar_demo/services/providers/auth_provider.dart';
+import 'package:tikitar_demo/services/providers/profile_provider.dart';
 
 void main() async {
   final config = ClarityConfig(
@@ -37,7 +41,19 @@ void main() async {
     DeviceOrientation.portraitDown, // optional: allows upside-down portrait
   ]);
 
-  runApp(ClarityWidget(app: MyApp(), clarityConfig: config));
+  runApp(
+    // ClarityWidget(
+    //   app: MyApp(), 
+    //   clarityConfig: config,
+    // ),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
+      ],
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -52,7 +68,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkAndRequestLocationPermission();
+      // _checkAndRequestLocationPermission();
     });
   }
 
