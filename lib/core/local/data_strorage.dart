@@ -27,9 +27,9 @@ class DataStorage {
     await prefs.setString('user_data', data);
   }
 
-  static Future<String?> getUserData() async {
+  static Future<String> getUserData() async {
     final prefs = await _instance;
-    return prefs.getString('user_data');
+    return prefs.getString('user_data')!;
   }
 
   static Future<void> clearUserData() async {

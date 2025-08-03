@@ -2,25 +2,27 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tikitar_demo/features/common/constants.dart';
 import 'package:tikitar_demo/features/common/functions.dart';
+import 'package:tikitar_demo/features/common/repositories/category_repository.dart';
 import 'package:tikitar_demo/features/common/view/pages/webview_common_screen.dart';
 import 'dart:developer' as developer;
 
 import 'package:tikitar_demo/controllers/clients_controller.dart';
 import 'package:tikitar_demo/controllers/company_controller.dart';
 import 'package:tikitar_demo/core/local/data_strorage.dart';
+import 'package:tikitar_demo/features/profile/repositories/profile_repository.dart';
 
-class CompanyListScreen extends StatefulWidget {
+class CompanyListScreen extends ConsumerStatefulWidget {
   const CompanyListScreen({super.key});
 
   @override
-  State<CompanyListScreen> createState() => _CompanyListScreenState();
+  ConsumerState<CompanyListScreen> createState() => _CompanyListScreenState();
 }
 
-class _CompanyListScreenState extends State<CompanyListScreen> {
+class _CompanyListScreenState extends ConsumerState<CompanyListScreen> {
   InAppWebViewController? _controller;
-  int? userId;
   String categoryOptionsHTML = '';
   String stateOptionsHTML = '';
   bool? fetchShowGaugesBoolFromPreferences;
@@ -105,14 +107,6 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
   }
 
   Future<void> _initializeCompanyListScreen() async {
-    // Get userData from SharedPreferences, to finally get the userId
-    final userData = await DataStorage.getUserData();
-    if (userData != null) {
-      final decoded = jsonDecode(userData);
-      userId = int.tryParse(decoded['id'].toString()) ?? 0;
-    }
-    developer.log("Extracted userId: $userId", name: "CompanyListScreen");
-
     // Get gauges data from SharedPreferences, to finally decide whether to show gauges or not
     fetchShowGaugesBoolFromPreferences =
         await DataStorage.getShowGaugesBoolean();
@@ -141,6 +135,8 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
   Future<void> fetchCompanies({
     required InAppWebViewController controller,
   }) async {
+    // read data from the riverpod_provider
+    final profile = ref.read(profileProvider);
     String companyRowJS = '''
       <tr>
         <th>Rank</th>
@@ -148,11 +144,13 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
         <th>View</th>
       </tr>
     ''';
+    final userId = profile?.id ?? 0;
     developer.log(
-      "fetchCompaniesAndInject send data ${userId}",
+      "fetchCompaniesAndInject: ${userId}",
       name: "CompanyListScreen",
     );
-    final response = await CompanyController.getOnlyCompanies(userId!);
+
+    final response = await CompanyController.getOnlyCompanies(userId);
 
     if (response['status'] == true) {
       developer.log(
@@ -256,6 +254,10 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
   }
 
   Future<void> _fetchCompanyContacts({required int companyId}) async {
+    // read data from the riverpod_provider
+    final profile = ref.read(profileProvider);
+    final userId = profile?.id ?? 0;
+
     await _controller?.evaluateJavascript(
       source: """
         // adding the spinner icon to show the loading
@@ -267,7 +269,7 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
     );
     final response = await ClientsController.getUserContactPersonsData(
       companyId,
-      userId!,
+      userId,
     );
     developer.log(
       "_fetchCompanyContacts response ${response}",
@@ -568,16 +570,13 @@ class _CompanyListScreenState extends State<CompanyListScreen> {
   }
 
   Future<void> _fetchStoredStaticData() async {
-    // Fetch categories first from sharedPreferences
-    final categories = await DataStorage.getCategoryOptionsData();
-    if (categories == null) return;
-
-    final categoriesData = jsonDecode(categories) as List<dynamic>;
+    // Fetch category list from the provider
+    final categoryList = await ref.read(categoryProvider.future);
 
     categoryOptionsHTML = '<option selected>Select Category</option>';
-    for (var cat in categoriesData) {
-      final id = Functions.escapeJS(cat['id'].toString());
-      final name = Functions.escapeJS(cat['name'].toString());
+    for (var cat in categoryList) {
+      final id = Functions.escapeJS(cat.id.toString());
+      final name = Functions.escapeJS(cat.name.toString());
       categoryOptionsHTML += '<option value="$id">$name</option>';
     }
     developer.log(

@@ -2,9 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tikitar_demo/features/common/functions.dart';
+import 'package:tikitar_demo/features/common/repositories/category_repository.dart';
 import 'package:tikitar_demo/features/common/view/pages/webview_common_screen.dart';
 import 'package:tikitar_demo/controllers/auth_controller.dart';
 import 'package:tikitar_demo/controllers/categories_controller.dart';
@@ -13,16 +15,17 @@ import 'package:tikitar_demo/core/local/data_strorage.dart';
 import 'package:tikitar_demo/features/meetings/view/pages/meeting_list_screen.dart';
 import 'dart:developer' as developer;
 import 'package:tikitar_demo/core/abstractions/firebase_api.dart';
+import 'package:tikitar_demo/features/profile/repositories/profile_repository.dart';
 
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen>{
-  int userId = 0;
+class _DashboardScreenState extends ConsumerState<DashboardScreen>{
+  // int userId = 0;
   bool? fetchShowGaugesBoolFromPreferences;
   int daysInMonth = 0;
 
@@ -30,7 +33,8 @@ class _DashboardScreenState extends State<DashboardScreen>{
   void initState() {
     super.initState();
     _initializeDashboard();
-    _fetchCategoriesAndStore(); // to get the categories Option and Store it
+    ref.read(categoryProvider);
+    // _fetchCategoriesAndStore(); // to get the categories Option and Store it
     initializePushNotifications();
     fetchAndSendLocationHistoryData(); // Fetch and send location history data from shared preferences key of 'location_history'
   }
@@ -60,22 +64,6 @@ class _DashboardScreenState extends State<DashboardScreen>{
   }
 
   Future<void> _initializeDashboard() async {
-    // Get userData from SharedPreferences, to finally get the userId
-    final userData = await DataStorage.getUserData();
-    if (userData != null) {
-      final decoded = jsonDecode(userData);
-      userId = int.tryParse(decoded['id'].toString()) ?? 0;
-    }
-    developer.log("Extracted userId: $userId", name: "DashboardScreen");
-
-    // Get gauges data from SharedPreferences, to finally decide whether to show gauges or not
-    fetchShowGaugesBoolFromPreferences =
-        await DataStorage.getShowGaugesBoolean();
-    developer.log(
-      "Extracted fetchShowGaugesBoolFromPreferences: $fetchShowGaugesBoolFromPreferences",
-      name: "DashboardScreen",
-    );
-    
     // Get the current year and month
     final DateTime now = DateTime.now();
     final int currentYear = now.year;
@@ -89,6 +77,8 @@ class _DashboardScreenState extends State<DashboardScreen>{
     required InAppWebViewController controller,
     String? pageName,
   }) async {
+    // read data from the riverpod_provider
+    final profile = ref.read(profileProvider);
     String tableRowsJS = '''
       <tr>
         <th>Rank</th>
@@ -97,6 +87,8 @@ class _DashboardScreenState extends State<DashboardScreen>{
         <th>View</th>
       </tr>
     ''';
+    final userId = profile?.id ?? 0;
+
     try {
       final response = await UserController.specificEmployeesReporting(userId);
       final users = response['employees'];

@@ -1,35 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get/get.dart';
-import 'package:provider/provider.dart';
+import 'package:tikitar_demo/features/auth/repositories/auth_repository.dart';
 import 'package:tikitar_demo/features/common/view/widgets/tapper.dart';
-import 'package:tikitar_demo/services/providers/auth_provider.dart';
-import 'package:tikitar_demo/services/providers/profile_provider.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-
   bool _obscureText = true; // Toggle state
 
   void _handleLogin() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final profileProvider = Provider.of<ProfileProvider>(
-      context,
-      listen: false,
-    );
-
-    final result = await authProvider.login(
-      email: _emailController.text.trim(),
-      password: _passwordController.text.trim(),
-      profileProvider: profileProvider,
-    );
+    final result = await ref
+        .read(authProvider.notifier)
+        .login(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
 
     if (!mounted) return;
     print("Login result: $result");
@@ -60,6 +53,8 @@ class _LoginScreenState extends State<LoginScreen> {
       fontWeight: FontWeight.bold,
       color: Colors.grey.shade600,
     );
+
+    final authState = ref.watch(authProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -181,46 +176,39 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 35.0),
                   // Login Button
-                  Consumer<AuthProvider>(
-                    builder: (context, authProvider, _) {
-                      return Tapper(
-                        borderRadius: BorderRadius.circular(8.0),
-                        backgroundColor: Color(0xFFFECC00),
-                        rippleColor: Colors.grey.withOpacity(0.4),
-                        onTap:
-                            authProvider.isLoading
-                                ? () => {}
-                                : () => _handleLogin(),
-                        child: Container(
-                          width: double.infinity,
-                          alignment: Alignment.center,
-                          height: 50.0,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 50,
-                          ), // Added padding
-                          child:
-                              authProvider.isLoading
-                                  ? SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                  : Text(
-                                    'Login',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                        ),
-                      );
-                    },
+                  Tapper(
+                    borderRadius: BorderRadius.circular(8.0),
+                    backgroundColor: Color(0xFFFECC00),
+                    rippleColor: Colors.grey.withOpacity(0.4),
+                    onTap:
+                        authState.isLoading ? () => {} : () => _handleLogin(),
+                    child: Container(
+                      width: double.infinity,
+                      alignment: Alignment.center,
+                      height: 50.0,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 50,
+                      ), // Added padding
+                      child:
+                          authState.isLoading
+                              ? SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : Text(
+                                'Login',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                    ),
                   ),
-
                   const SizedBox(height: 15.0),
                 ],
               ),
