@@ -51,7 +51,7 @@ class MeetingsController {
     }
   }
 
-  static Future<Map<String, dynamic>> userBasedMeetings(int userId) async {
+  static Future<List<Map<String, dynamic>>> userBasedMeetings(int userId) async {
     try {
       final response = await ApiBase.get('/meetings/user/$userId');
       final data = response['data'];
@@ -62,20 +62,12 @@ class MeetingsController {
       );
 
       if (data != null && data is List) {
-        return {
-          'status': true,
-          'message': 'Meetings loaded successfully',
-          'data': data,
-        };
+        return List<Map<String, dynamic>>.from(data);
       } else {
         throw Exception('No meetings found or wrong data type');
       }
     } catch (e) {
-      return {
-        'status': false,
-        'message': 'Failed to load the meetings of this user: $e',
-        'data': [],
-      };
+      throw Exception('Failed to load the meetings of this user: $e');
     }
   }
 }

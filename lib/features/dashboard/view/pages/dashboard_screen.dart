@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,13 +7,11 @@ import 'package:tikitar_demo/features/common/functions.dart';
 import 'package:tikitar_demo/features/common/repositories/category_repository.dart';
 import 'package:tikitar_demo/features/common/view/pages/webview_common_screen.dart';
 import 'package:tikitar_demo/controllers/auth_controller.dart';
-import 'package:tikitar_demo/controllers/categories_controller.dart';
-import 'package:tikitar_demo/controllers/user_controller.dart';
 import 'package:tikitar_demo/core/local/data_strorage.dart';
+import 'package:tikitar_demo/features/dashboard/repositories/employee_reportings_repository.dart';
 import 'package:tikitar_demo/features/meetings/view/pages/meeting_list_screen.dart';
 import 'dart:developer' as developer;
 import 'package:tikitar_demo/core/abstractions/firebase_api.dart';
-import 'package:tikitar_demo/features/profile/repositories/profile_repository.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -34,6 +30,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>{
     super.initState();
     _initializeDashboard();
     ref.read(categoryProvider);
+    // ref.read(meetingProvider);
     // _fetchCategoriesAndStore(); // to get the categories Option and Store it
     initializePushNotifications();
     fetchAndSendLocationHistoryData(); // Fetch and send location history data from shared preferences key of 'location_history'
@@ -77,8 +74,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>{
     required InAppWebViewController controller,
     String? pageName,
   }) async {
-    // read data from the riverpod_provider
-    final profile = ref.read(profileProvider);
     String tableRowsJS = '''
       <tr>
         <th>Rank</th>
@@ -87,18 +82,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>{
         <th>View</th>
       </tr>
     ''';
-    final userId = profile?.id ?? 0;
 
     try {
-      final response = await UserController.specificEmployeesReporting(userId);
-      final users = response['employees'];
+      final employeeReportingList = await ref.read(employeeReportingsProvider.future);
+      debugPrint("employeeReportingList: $employeeReportingList");
 
-      for (int i = 0; i < users.length; i++) {
-        final user = users[i];
+      for (int i = 0; i < employeeReportingList.length; i++) {
+        final user = employeeReportingList[i];
         final rank = i + 1;
-        final name = Functions.escapeJS(user['name'] ?? '');
-        final role = Functions.escapeJS(user['role'] ?? '');
-        final id = Functions.escapeJS(user['id'].toString());
+        final name = Functions.escapeJS(user.name);
+        final role = Functions.escapeJS(user.role);
+        final id = Functions.escapeJS(user.id.toString());
         tableRowsJS += """
             <tr>
               <td>$rank</td>
@@ -137,9 +131,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>{
       developer.log("Error: $e", name: "$pageName");
 
       fetchAndInjectMeetings(
+        ref: ref,
         controller: controller,
         pageName: pageName,
-        userId: userId,
       );
 
       // If there are no users reporting to this user, then hide the gauges
@@ -246,22 +240,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>{
       """;
     }
     await controller.evaluateJavascript(source: bonusMetricJS);
-  }
-
-  // fetch all the available categories and store in shared preferences
-  Future<void> _fetchCategoriesAndStore() async {
-    try {
-      // Fetch categories first
-      final categories = await CategoryController.fetchCategories();
-      developer.log("categories data $categories", name: "DashboardScreen");
-      // save it in sharedPreference store
-      DataStorage.saveCategoryOptionsData(jsonEncode(categories));
-    } catch (e) {
-      developer.log(
-        "Error _fetchCategoriesAndStore(): $e",
-        name: "DashboardScreen",
-      );
-    }
   }
 
   Future<void> initializePushNotifications() async {

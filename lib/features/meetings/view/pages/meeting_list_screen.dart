@@ -1,23 +1,21 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tikitar_demo/features/common/functions.dart';
+import 'package:tikitar_demo/features/common/repositories/meeting_repository.dart';
 import 'package:tikitar_demo/features/common/view/pages/webview_common_screen.dart';
-import 'package:tikitar_demo/controllers/meetings_controller.dart';
 import 'dart:developer' as developer;
-
 import 'package:tikitar_demo/core/local/data_strorage.dart';
+import 'package:tikitar_demo/features/profile/repositories/profile_repository.dart';
 
-class MeetingListScreen extends StatefulWidget {
+class MeetingListScreen extends ConsumerStatefulWidget {
   const MeetingListScreen({super.key});
 
   @override
-  State<MeetingListScreen> createState() => _MeetingListScreenState();
+  ConsumerState<MeetingListScreen> createState() => _MeetingListScreenState();
 }
 
-class _MeetingListScreenState extends State<MeetingListScreen> {
-  int? userId;
+class _MeetingListScreenState extends ConsumerState<MeetingListScreen> {
   bool? fetchShowGaugesBoolFromPreferences;
   bool? fetchShowBonusMetricBoolFromPreferences;
   int daysInMonth = 0;
@@ -35,9 +33,9 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
       title: "Meeting List",
       onLoadStop: (controller, url) async {
         await fetchAndInjectMeetings(
+          ref: ref,
           controller: controller,
           pageName: "MeetingListScreen",
-          userId: userId,
           filter: "All Data" // set the filter to All Data, to always show all the meetings
         );
 
@@ -56,14 +54,6 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
 
   // Get userData from SharedPreferences, to finally get the userId
   Future<void> _initializeMeetingListScreen() async {
-    final userData = await DataStorage.getUserData();
-    if (userData != null) {
-      final decoded = jsonDecode(userData);
-      // converting to int successfully
-      userId = int.tryParse(decoded['id'].toString()) ?? 0;
-    }
-    developer.log("Extracted userId: $userId", name: "MeetingListScreen");
-
     // Get gauges data from SharedPreferences, to finally decide whether to show gauges or not
     fetchShowGaugesBoolFromPreferences =
         await DataStorage.getShowGaugesBoolean();
@@ -124,10 +114,11 @@ Future<void> showLoadingSpinner(InAppWebViewController controller) async {
 }
 
 Future<void> fetchAndInjectMeetings({
+  required WidgetRef ref,
   required InAppWebViewController controller,
   String? pageName,
   int? userId,
-  String? filter,
+  String filter = "All Data",
   String? fromDatePassed,
   String? toDatePassed,
 }) async {
@@ -140,21 +131,21 @@ Future<void> fetchAndInjectMeetings({
     </tr>
   ''';
   try {
-    developer.log("User ID being passed: $userId", name: "$pageName");
-    developer.log("Filter being passed: $filter", name: "$pageName");
-    developer.log(
-      "fromDatePassed being passed: $fromDatePassed",
-      name: "$pageName",
-    );
-    developer.log(
-      "toDatePassed being passed: $toDatePassed",
-      name: "$pageName",
-    );
+    final profile = ref.read(profileProvider);
+    final effectiveUserId = userId ?? profile?.id;
+    if (effectiveUserId == null) {
+      developer.log("No user ID available", name: "$pageName");
+      return;
+    }
 
-    final response = await MeetingsController.userBasedMeetings(userId!);
-    final List<dynamic> fullMeetingsList = response['data'] ?? [];
+    // Set the user ID in the meeting repository
+    final meetingRepo = ref.read(meetingProvider.notifier);
+    meetingRepo.setUserId(effectiveUserId);
 
-    // 🧠 Local filtering based on `filter` string
+    // Refresh to fetch the new data based on userId
+    final fullMeetingsList = await ref.refresh(meetingProvider.future);
+
+    // Local filtering based on `filter` string
     DateTime fromDate;
     DateTime now = DateTime.now();
     switch (filter) {
@@ -176,12 +167,15 @@ Future<void> fetchAndInjectMeetings({
         break;
     }
 
-    // 📅 Filter locally
+    // Filter locally, and makes sure that meeting data is not null
+    // and always there
     final filteredMeetings =
-        fullMeetingsList.where((meeting) {
+        fullMeetingsList
+        .where((meeting) => meeting.meetingDate != null)
+        .where((meeting) {
           try {
-            final rawDate = meeting['meeting_date'] ?? '';
-            final meetingDate = DateTime.parse(rawDate);
+            final rawDate = meeting.meetingDate;
+            final meetingDate = DateTime.parse(rawDate!);
             return meetingDate.isAfter(fromDate) && meetingDate.isBefore(now) ||
                 meetingDate.isAtSameMomentAs(fromDate) ||
                 meetingDate.isAtSameMomentAs(now);
@@ -189,11 +183,6 @@ Future<void> fetchAndInjectMeetings({
             return false;
           }
         }).toList();
-
-    developer.log(
-      "filteredMeetings Meeting list response: $filteredMeetings",
-      name: "$pageName",
-    );
 
     String twoDigits(int n) => n.toString().padLeft(2, '0');
 
@@ -204,40 +193,32 @@ Future<void> fetchAndInjectMeetings({
           <td colspan="4" style="text-align: center; color: red;">No meetings found for the selected filter.</td>
         </tr>
       """;
-      developer.log(
-        "No meetings found for the selected filter.",
-        name: "$pageName",
-      );
     }
 
     for (int i = 0; i < filteredMeetings.length; i++) {
       final meeting = filteredMeetings[i];
-      if (meeting == null) continue; // Skip if null
       final rank = i + 1;
       // for date, escape new lines and quotes
-      final rawDate = meeting['meeting_date'] ?? '';
-      final contactPersonMobile = meeting['contact_person_mobile'] ?? '';
-      final contactPersonEmail = meeting['contact_person_email'] ?? '';
-      final clientName =
-          meeting['client'] != null
-              ? Functions.escapeJS(meeting['client']['name'] ?? '')
-              : 'N/A';
+      final rawDate = meeting.meetingDate;
+      final contactPersonMobile = meeting.contactMobile;
+      final contactPersonEmail = meeting.contactEmail;
+      final clientName = Functions.escapeJS(meeting.client?.name ?? 'Not Known');
       String formattedDate = '';
       try {
-        final parsedDate = DateTime.parse(rawDate);
+        final parsedDate = DateTime.parse(rawDate!);
         formattedDate =
             "${parsedDate.year}-${twoDigits(parsedDate.month)}-${twoDigits(parsedDate.day)}";
       } catch (e) {
-        formattedDate = Functions.escapeJS(rawDate);
+        formattedDate = Functions.escapeJS(rawDate!);
       }
       final date = Functions.escapeJS(formattedDate);
       // for comments, escape new lines and quotes
-      final comments = Functions.escapeJS(meeting['comments'] ?? '');
+      final comments = Functions.escapeJS(meeting.comments ?? '');
 
       // to insert the link of the file that is being submitted during the meeting
       // it contains the link
       final visitingCardUrl = Functions.escapeJS(
-        meeting['visiting_card'] ?? '',
+        meeting.visitingCard ?? '',
       );
 
       tableRowsJS += """

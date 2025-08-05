@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tikitar_demo/features/common/constants.dart';
@@ -14,27 +15,30 @@ import 'package:tikitar_demo/core/local/data_strorage.dart';
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 import 'package:tikitar_demo/features/common/functions.dart';
+import 'package:tikitar_demo/features/companies/repositories/company_repository.dart';
 import 'dart:io'; // Add import for File handling
 import 'dart:developer' as developer;
 
-class TaskScreen extends StatefulWidget {
+import 'package:tikitar_demo/features/profile/repositories/profile_repository.dart';
+
+class TaskScreen extends ConsumerStatefulWidget {
+  const TaskScreen({super.key});
+
   @override
-  _TaskScreenState createState() => _TaskScreenState();
+  ConsumerState<TaskScreen> createState() => _TaskScreenState();
 }
 
-class _TaskScreenState extends State<TaskScreen> {
+class _TaskScreenState extends ConsumerState<TaskScreen> {
   InAppWebViewController? _controller;
   File? _visitedCardFile; // Variable to hold the selected file
   String categoryOptionsHTML = ''; // store the categoryOptions
   String stateOptionsHTML = ''; // store the stateOptions
   String companyOptionsHTML = '<option value="0">No Company Found</option>'; // store the companyOptions
-  int? userId;
 
   @override
   void initState() {
     super.initState();
     _fetchStoredStaticData(); // fetch all the static data
-    _initializeTaskScreen(); // to initialize the userId variable
   }
 
   @override
@@ -725,6 +729,10 @@ class _TaskScreenState extends State<TaskScreen> {
       return;
     }
 
+    // read data from the riverpod_provider
+    final profile = ref.read(profileProvider);
+    final userId = profile?.id ?? 0;
+
     final now = DateTime.now();
     final formattedDate =
         "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
@@ -867,53 +875,29 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   Future<void> _fetchCompaniesData() async {
-    developer.log(
-      "_fetchCompaniesData send data ${userId}",
-      name: "TaskScreen",
-    );
-    final response = await CompanyController.getOnlyCompanies(userId!);
+    final companyList = await ref.read(companyProvider.future);
 
-    if (response['status'] == true) {
-      developer.log(
-        "_fetchCompaniesData successfully ${response['data']}",
-        name: "TaskScreen",
-      );
-      final companiesData = response['data'];
+    if (companyList.isNotEmpty) {
       companyOptionsHTML = '<option selected>Select Company</option>';
-      for (int i = 0; i < companiesData.length; i++) {
-        final name = Functions.escapeJS(companiesData[i]['name'].toString());
-        final id = companiesData[i]['id'];
+      for (int i = 0; i < companyList.length; i++) {
+        final company = companyList[i];
+        final name = Functions.escapeJS(company.name.toString());
+        final id = company.id;
         companyOptionsHTML += '<option value="$id">$name</option>';
       }
-      developer.log(
-        "companyOptionsHTML $companyOptionsHTML",
-        name: "TaskScreen",
-      );
-    } else {
-      developer.log(
-        "_fetchCompaniesData un-successfully ${response['data']}",
-        name: "TaskScreen",
-      );
     }
-  }
-
-  // Get userData from SharedPreferences, to finally get the userId
-  Future<void> _initializeTaskScreen() async {
-    final userData = await DataStorage.getUserData();
-    if (userData != null) {
-      final decoded = jsonDecode(userData);
-      // converting to int successfully
-      userId = int.tryParse(decoded['id'].toString()) ?? 0;
-    }
-    developer.log("Extracted userId: $userId", name: "TaskScreen");
   }
 
   Future<void> _fetchCurrentUsersContactPerson(int companyId) async {
+    // read data from the riverpod_provider
+    final profile = ref.read(profileProvider);
+    final userId = profile?.id ?? 0;
+
     // In actuall companyId is the clientId, we are sending the companyId
     // but in api it is considered as clientId
     final response = await ClientsController.getUserContactPersonsData(
       companyId,
-      userId!,
+      userId,
     );
     developer.log(
       "_fetchCurrentUsersContactPerson response ${response['data']}",

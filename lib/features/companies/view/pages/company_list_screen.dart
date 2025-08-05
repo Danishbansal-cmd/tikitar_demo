@@ -12,6 +12,7 @@ import 'dart:developer' as developer;
 import 'package:tikitar_demo/controllers/clients_controller.dart';
 import 'package:tikitar_demo/controllers/company_controller.dart';
 import 'package:tikitar_demo/core/local/data_strorage.dart';
+import 'package:tikitar_demo/features/companies/repositories/company_repository.dart';
 import 'package:tikitar_demo/features/profile/repositories/profile_repository.dart';
 
 class CompanyListScreen extends ConsumerStatefulWidget {
@@ -135,8 +136,6 @@ class _CompanyListScreenState extends ConsumerState<CompanyListScreen> {
   Future<void> fetchCompanies({
     required InAppWebViewController controller,
   }) async {
-    // read data from the riverpod_provider
-    final profile = ref.read(profileProvider);
     String companyRowJS = '''
       <tr>
         <th>Rank</th>
@@ -144,28 +143,16 @@ class _CompanyListScreenState extends ConsumerState<CompanyListScreen> {
         <th>View</th>
       </tr>
     ''';
-    final userId = profile?.id ?? 0;
-    developer.log(
-      "fetchCompaniesAndInject: ${userId}",
-      name: "CompanyListScreen",
-    );
 
-    final response = await CompanyController.getOnlyCompanies(userId);
+    final companyList = await ref.read(companyProvider.future);
 
-    if (response['status'] == true) {
-      developer.log(
-        "fetchCompaniesAndInject successfully ${response['data']}",
-        name: "CompanyListScreen",
-      );
-      final companiesData = response['data'];
-
-      for (int i = 0; i < companiesData.length; i++) {
-        final company = companiesData[i];
-        if (company == null) continue; // Skip if null
+    if (companyList.isNotEmpty) {
+      for (int i = 0; i < companyList.length; i++) {
+        final company = companyList[i];
 
         final rank = i + 1;
-        final companyName = Functions.escapeJS(company['name'].toString());
-        final id = company['id'];
+        final companyName = Functions.escapeJS(company.name.toString());
+        final id = company.id;
 
         companyRowJS += """
           <tr>
@@ -192,7 +179,7 @@ class _CompanyListScreenState extends ConsumerState<CompanyListScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            response['message'] ?? 'Try Again Later, No Company Found!',
+            'Try Again Later, No Company Found!',
           ),
         ),
       );

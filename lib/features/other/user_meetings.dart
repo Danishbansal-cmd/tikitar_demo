@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get/get.dart';
 import 'package:tikitar_demo/features/common/view/pages/webview_common_screen.dart';
 import 'package:tikitar_demo/features/meetings/view/pages/meeting_list_screen.dart';
 
-class UserMeetings extends StatefulWidget {
+class UserMeetings extends ConsumerStatefulWidget {
   // these two are the variables that are passed from the dashboard screen
   // it indicates the variables belong to person that report to currently logged user
   final int userId;
@@ -13,10 +14,10 @@ class UserMeetings extends StatefulWidget {
   const UserMeetings({super.key, required this.userId, required this.userName});
 
   @override
-  State<UserMeetings> createState() => _UserMeetingsState();
+  ConsumerState<UserMeetings> createState() => _UserMeetingsState();
 }
 
-class _UserMeetingsState extends State<UserMeetings> {
+class _UserMeetingsState extends ConsumerState<UserMeetings> {
   InAppWebViewController? _controller;
 
   @override
@@ -43,6 +44,7 @@ class _UserMeetingsState extends State<UserMeetings> {
         onLoadStop: (controller, url) async {
           _controller = controller;
           await fetchAndInjectMeetings(
+            ref: ref,
             controller: controller,
             pageName: "UserMeetings",
             userId: widget.userId,
@@ -59,6 +61,7 @@ class _UserMeetingsState extends State<UserMeetings> {
               final toDateExtracted = args.length > 2 ? args[2] : null;
               
               fetchAndInjectMeetings(
+                ref: ref,
                 controller: controller,
                 pageName: "UserMeetings",
                 userId: widget.userId,
