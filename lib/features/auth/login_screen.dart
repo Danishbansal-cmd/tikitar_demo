@@ -55,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Container(
                   padding: const EdgeInsets.all(50),
                   child: Image.asset(
-                    'assets/images/app-icon.png',
+                    'assets/images/tikitar-logo.png',
                     height: 200,
                     width: 200,
                   ),

@@ -26,7 +26,7 @@ class AuthController {
       print("[Controller error]: $e");
       return {
         'status': false,
-        'message': '[Controller] An error occurred. Please try again.',
+        'message': 'Invalid Details! Please Try Again.',
       };
     }
   }
