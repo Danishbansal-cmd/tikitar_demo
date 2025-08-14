@@ -47,36 +47,6 @@ class DataStorage {
     return prefs.getString('category_options');
   }
 
-  static Future<bool?> getShowGaugesBoolean() async {
-    final prefs = await _instance;
-    return prefs.getBool('show_gauges');
-  }
-
-  static Future<void> saveShowGaugesBoolean(bool showGaugesStatus) async {
-    final prefs = await _instance;
-    await prefs.setBool('show_gauges', showGaugesStatus);
-  }
-
-  static Future<void> clearShowGaugesBoolean() async {
-    final prefs = await _instance;
-    await prefs.remove('show_gauges');
-  }
-
-  static Future<bool?> getShowBonusMetricBoolean() async {
-    final prefs = await _instance;
-    return prefs.getBool('bonus_gauge');
-  }
-
-  static Future<void> saveShowBonusMetricBoolean(bool showGaugesStatus) async {
-    final prefs = await _instance;
-    await prefs.setBool('bonus_gauge', showGaugesStatus);
-  }
-
-  static Future<void> clearShowBonusMetricBoolean() async {
-    final prefs = await _instance;
-    await prefs.remove('bonus_gauge');
-  }
-
   static Future<SharedPreferences> getInstace() async{
     return await _instance;
   }

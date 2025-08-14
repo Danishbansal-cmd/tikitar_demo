@@ -32,24 +32,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       title: "My Profile",
       onLoadStop: (controller, url) async {
         if (profileState == null) return;
-        // // get the response from the API
-        // late final Map<String, dynamic>? response;
-        // try {
-        //   response = await ApiBase.get('/user');
-        // } catch (e) {
-        //   developer.log(
-        //     "Error fetching user data: $e",
-        //     name: 'UserProfileWebView',
-        //     error: e,
-        //   );
-        //   return;
-        // }
-        // if (response == null) return;
-        // developer.log("response: $response", name: 'UserProfileWebView');
-
-        // for the extraction of the data and the address
-        // final data = response['data']?['user'];
-        // final address = data['address'] ?? {};
 
         final dataVirtualContactFile = '''
 BEGIN:VCARD

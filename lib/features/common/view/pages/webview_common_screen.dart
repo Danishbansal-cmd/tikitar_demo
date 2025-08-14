@@ -1,18 +1,28 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:tikitar_demo/features/common/constants.dart';
 import 'package:tikitar_demo/core/local/data_strorage.dart';
+import 'package:tikitar_demo/features/common/repositories/category_repository.dart';
+import 'package:tikitar_demo/features/common/repositories/meeting_repository.dart';
+import 'package:tikitar_demo/features/common/repositories/monthly_data_repository.dart';
+import 'package:tikitar_demo/features/common/repositories/personal_data_repository.dart';
+import 'package:tikitar_demo/features/companies/repositories/company_repository.dart';
+import 'package:tikitar_demo/features/dashboard/repositories/employee_reportings_repository.dart';
+import 'package:tikitar_demo/features/profile/repositories/profile_repository.dart';
+import 'package:tikitar_demo/features/auth/repositories/auth_repository.dart';
 import 'package:tikitar_demo/features/other/user_meetings.dart';
 import 'package:tikitar_demo/features/meetings/view/pages/meeting_list_screen.dart';
 import 'dart:developer' as developer;
 import 'package:url_launcher/url_launcher.dart';
 
-class WebviewCommonScreen extends StatefulWidget {
+class WebviewCommonScreen extends ConsumerStatefulWidget {
   final String url;
   final String title;
 
@@ -30,20 +40,37 @@ class WebviewCommonScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<WebviewCommonScreen> createState() => _WebviewCommonScreenState();
+  ConsumerState<WebviewCommonScreen> createState() => _WebviewCommonScreenState();
 }
 
 bool _hasError = false;
 bool _isLoading = true;
 
-class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
+class _WebviewCommonScreenState extends ConsumerState<WebviewCommonScreen> {
+  @override
+  void initState() {
+    super.initState();
+
+    // Make bottom navigation bar transparent
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        systemNavigationBarColor: Colors.transparent, // Transparent background
+        systemNavigationBarIconBrightness: Brightness.dark, // Icons color
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final safeTop = MediaQuery.of(context).padding.top;
 
     return Scaffold(
+      extendBody: true,
+      extendBodyBehindAppBar: true,
       body: Padding(
-        padding: EdgeInsets.only(top: safeTop),
+        padding: EdgeInsets.only(
+          top: safeTop,
+        ),
         child: Stack(
           children: [
             if (_isLoading)
@@ -130,8 +157,19 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                             if (confirmed == true) {
                               await DataStorage.clearToken();
                               await DataStorage.clearUserData();
-                              await DataStorage.clearShowGaugesBoolean();
-                              await DataStorage.clearShowBonusMetricBoolean();
+                              
+                              // clear all providers
+                              ref.invalidate(categoryProvider);
+                              ref.invalidate(meetingProvider);
+                              ref.invalidate(monthlyDataProvider);
+                              ref.invalidate(showGaugesBooleanProvider);
+                              ref.invalidate(personalDataProvider);
+                              ref.invalidate(showBonusMetricBooleanProvider);
+                              ref.invalidate(companyProvider);
+                              ref.invalidate(employeeReportingsProvider);
+                              ref.invalidate(profileProvider);
+                              ref.invalidate(authProvider);
+
                               Get.offAllNamed('/login');
                             }
                             await controller.evaluateJavascript(
@@ -190,11 +228,16 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                     );
                   },
                   onLoadStart: (controller, url) {
-                    showLoadingSpinner(
-                      controller,
-                    ); // ✅ Show loader when navigation starts
+                    setState(() {
+                      _hasError = false; // reset error state on new load
+                      _isLoading = true; // always show spinner when new load starts
+                    });
                   },
                   onLoadStop: (controller, url) async {
+                    showLoadingSpinner(
+                      controller,
+                    ); // Show loader when navigation starts
+
                     // it disables the user select
                     await controller.evaluateJavascript(
                       source: """
@@ -215,13 +258,6 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                     // A State object is considered "mounted" when it is associated
                     //with a BuildContext and is part of the widget tree.
                     if (!mounted || _hasError) return;
-
-                    // Set loading state to true
-                    if (mounted && !_hasError) {
-                      setState(() {
-                        _isLoading = false;
-                      });
-                    }
 
                     try {
                       final status = await Permission.location.status;
@@ -250,13 +286,12 @@ class _WebviewCommonScreenState extends State<WebviewCommonScreen> {
                         ),
                       );
 
-                      // Get user name from SharedPreferences
-                      final userData = await DataStorage.getUserData();
+                      // Get user name in profileState from profileProvider
+                      final profileState = ref.read(profileProvider);
                       String userName = 'User';
 
-                      if (userData != null) {
-                        final decoded = jsonDecode(userData);
-                        userName = decoded['first_name'] ?? userName;
+                      if (profileState?.firstName != null) {
+                        userName = profileState?.firstName ?? userName;
                       }
 
                       // Change the logo of the User

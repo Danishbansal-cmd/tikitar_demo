@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tikitar_demo/features/common/constants.dart';
+import 'package:tikitar_demo/features/common/repositories/category_repository.dart';
 import 'package:tikitar_demo/features/common/view/pages/webview_common_screen.dart';
 import 'package:tikitar_demo/controllers/clients_controller.dart';
 import 'package:tikitar_demo/controllers/company_controller.dart';
@@ -790,16 +791,13 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
 
   Future<void> _fetchStoredStaticData() async {
     try {
-      // Fetch categories first from sharedPreferences
-      final categories = await DataStorage.getCategoryOptionsData();
-      if (categories == null) return;
-
-      final categoriesData = jsonDecode(categories) as List<dynamic>;
+      // Fetch category list from the provider
+      final categoryList = await ref.read(categoryProvider.future);
 
       categoryOptionsHTML = '<option selected>Select Category</option>';
-      for (var cat in categoriesData) {
-        final id = Functions.escapeJS(cat['id'].toString());
-        final name = Functions.escapeJS(cat['name'].toString());
+      for (var cat in categoryList) {
+        final id = Functions.escapeJS(cat.id.toString());
+        final name = Functions.escapeJS(cat.name.toString());
         categoryOptionsHTML += '<option value="$id">$name</option>';
       }
       developer.log(
@@ -863,6 +861,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
           document.getElementById('flutter-popup')?.remove();
         """,
       );
+      await ref.refresh(companyProvider.future);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -962,7 +961,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
       );
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ).showSnackBar(SnackBar(content: Text("No Contact Person, Try Adding Some.")));
     }
   }
 

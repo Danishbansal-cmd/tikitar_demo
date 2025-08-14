@@ -6,12 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tikitar_demo/features/common/constants.dart';
 import 'package:tikitar_demo/features/common/functions.dart';
 import 'package:tikitar_demo/features/common/repositories/category_repository.dart';
+import 'package:tikitar_demo/features/common/repositories/monthly_data_repository.dart';
+import 'package:tikitar_demo/features/common/repositories/personal_data_repository.dart';
 import 'package:tikitar_demo/features/common/view/pages/webview_common_screen.dart';
 import 'dart:developer' as developer;
 
 import 'package:tikitar_demo/controllers/clients_controller.dart';
 import 'package:tikitar_demo/controllers/company_controller.dart';
-import 'package:tikitar_demo/core/local/data_strorage.dart';
 import 'package:tikitar_demo/features/companies/repositories/company_repository.dart';
 import 'package:tikitar_demo/features/profile/repositories/profile_repository.dart';
 
@@ -26,8 +27,6 @@ class _CompanyListScreenState extends ConsumerState<CompanyListScreen> {
   InAppWebViewController? _controller;
   String categoryOptionsHTML = '';
   String stateOptionsHTML = '';
-  bool? fetchShowGaugesBoolFromPreferences;
-  bool? fetchShowBonusMetricBoolFromPreferences;
   int daysInMonth = 0;
 
   @override
@@ -91,40 +90,37 @@ class _CompanyListScreenState extends ConsumerState<CompanyListScreen> {
         // You can add any additional logic here if needed
         await injectMoreJS();
 
+        // access to the boolean values
+        final showGaugesBoolean = ref.watch(showGaugesBooleanProvider);
+        final showBonusMetricBoolean = ref.watch(showBonusMetricBooleanProvider);
         // show the middle gauges as there are some persons that are reporting to it
-        if (fetchShowGaugesBoolFromPreferences == true) {
-          Functions.fetchMonthlyData(
-            controller: controller,
-            daysInMonth: daysInMonth,
+        if (showGaugesBoolean == true) {
+          // store the montlyData of gauges
+          final monthlyDataState = ref.watch(monthlyDataProvider);
+          // instance of the MonthlyDataWebViewHelper class
+          final webViewHelper = MonthlyDataWebViewHelper(controller);
+          // show the gauges
+          await webViewHelper.showGauges();
+          // update or set the value of the gauges
+          await webViewHelper.insertCurrentMonthMeetingsValue(
+            monthlyDataState.currentMonthMeetingsValueDisplay,
           );
+          await webViewHelper.insertCurrentMonthTargetValue(monthlyDataState.averageMeetings);
         }
 
-        // show the BonusMetric gauge, with the data from calling the api
-        if (fetchShowBonusMetricBoolFromPreferences == true) {
-          Functions.fetchBonusMetricData(controller: controller);
+        // show the BonusMetric gauge
+        if (showBonusMetricBoolean == true) {
+          // store the personalData of gauges or metric
+          final personalDataState = ref.watch(personalDataProvider);
+          // instance of the MonthlyDataWebViewHelper class
+          final webViewHelper = PersonalDataWebViewHelper(controller);
+          await webViewHelper.insertBonusMetricValue(personalDataState.bonusMetricTargetCompletion);
         }
       },
     );
   }
 
   Future<void> _initializeCompanyListScreen() async {
-    // Get gauges data from SharedPreferences, to finally decide whether to show gauges or not
-    fetchShowGaugesBoolFromPreferences =
-        await DataStorage.getShowGaugesBoolean();
-    developer.log(
-      "Extracted fetchShowGaugesBoolFromPreferences: $fetchShowGaugesBoolFromPreferences",
-      name: "CompanyListScreen",
-    );
-
-    // Get BonusMetric gauge data from SharedPreferences,
-    // to finally decide whether to show BonusMetric gauge or not
-    fetchShowBonusMetricBoolFromPreferences =
-        await DataStorage.getShowBonusMetricBoolean();
-    developer.log(
-      "Extracted fetchShowBonusMetricBoolFromPreferences: $fetchShowBonusMetricBoolFromPreferences",
-      name: "CompanyListScreen",
-    );
-
     // Get the current year and month
     final DateTime now = DateTime.now();
     final int currentYear = now.year;

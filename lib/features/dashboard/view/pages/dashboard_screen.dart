@@ -5,9 +5,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tikitar_demo/features/common/functions.dart';
 import 'package:tikitar_demo/features/common/repositories/category_repository.dart';
+import 'package:tikitar_demo/features/common/repositories/monthly_data_repository.dart';
+import 'package:tikitar_demo/features/common/repositories/personal_data_repository.dart';
 import 'package:tikitar_demo/features/common/view/pages/webview_common_screen.dart';
-import 'package:tikitar_demo/controllers/auth_controller.dart';
-import 'package:tikitar_demo/core/local/data_strorage.dart';
 import 'package:tikitar_demo/features/dashboard/repositories/employee_reportings_repository.dart';
 import 'package:tikitar_demo/features/meetings/view/pages/meeting_list_screen.dart';
 import 'dart:developer' as developer;
@@ -21,7 +21,6 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen>{
-  // int userId = 0;
   bool? fetchShowGaugesBoolFromPreferences;
   int daysInMonth = 0;
 
@@ -31,7 +30,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>{
     _initializeDashboard();
     ref.read(categoryProvider);
     // ref.read(meetingProvider);
-    // _fetchCategoriesAndStore(); // to get the categories Option and Store it
     initializePushNotifications();
     fetchAndSendLocationHistoryData(); // Fetch and send location history data from shared preferences key of 'location_history'
   }
@@ -74,6 +72,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>{
     required InAppWebViewController controller,
     String? pageName,
   }) async {
+    // store the montlyData of gauges
+    final monthlyDataState = ref.watch(monthlyDataProvider);
+    // access to the boolean values
+    final showGaugesBoolean = ref.watch(showGaugesBooleanProvider);
+    
     String tableRowsJS = '''
       <tr>
         <th>Rank</th>
@@ -86,6 +89,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>{
     try {
       final employeeReportingList = await ref.read(employeeReportingsProvider.future);
       debugPrint("employeeReportingList: $employeeReportingList");
+
+      if(employeeReportingList.isEmpty){
+        // will make the throw the exception, then the catch statement executes
+        // where the current user meetings will be listed or injected here
+        throw Exception("No employees reporting to this user");
+      }
 
       for (int i = 0; i < employeeReportingList.length; i++) {
         final user = employeeReportingList[i];
@@ -119,13 +128,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>{
 
       // as there are users, that are reporting to this logged in user
       // then show the two gauges, that are under the main gauge, and update
-      // the variable in shared Preferences
-      Functions.fetchMonthlyData(controller: controller, daysInMonth: daysInMonth);
+      // the variable in riverpod state management
+      ref.read(monthlyDataProvider.notifier).fetchMonthlyData(daysInMonth: daysInMonth);
+      final webViewHelper = MonthlyDataWebViewHelper(controller);
+      // show the gauges
+      await webViewHelper.showGauges();
+      // update or set the value of the gauges
+      await webViewHelper.insertCurrentMonthMeetingsValue(
+        monthlyDataState.currentMonthMeetingsValueDisplay,
+      );
+      await webViewHelper.insertCurrentMonthTargetValue(monthlyDataState.averageMeetings);
 
-      // If no preference is set, default to showing gauges
-      if (fetchShowGaugesBoolFromPreferences == null ||
-          fetchShowGaugesBoolFromPreferences == false) {
-        DataStorage.saveShowGaugesBoolean(true);
+      // default to showing gauges
+      if (showGaugesBoolean == false) {
+        ref.read(showGaugesBooleanProvider.notifier).state = true;
       }
     } catch (e) {
       developer.log("Error: $e", name: "$pageName");
@@ -137,10 +153,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>{
       );
 
       // If there are no users reporting to this user, then hide the gauges
-      // and update the variable in shared Preferences
-      if (fetchShowGaugesBoolFromPreferences == null ||
-          fetchShowGaugesBoolFromPreferences == true) {
-        DataStorage.saveShowGaugesBoolean(false);
+      // and update the variable in riverpod state management
+      if (showGaugesBoolean == true) {
+        ref.read(showGaugesBooleanProvider.notifier).state = false;
       }
     }
   }
@@ -172,74 +187,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>{
   Future<void> fetchIndividualData({
     required InAppWebViewController controller,
   }) async {
-    // for Personal Target Value
-    String personalTargetJS = '';
-    final personalTargetData = await AuthController.fetchPersonalTarget();
-    if (personalTargetData['status'] == true) {
-      personalTargetJS = "";
-      developer.log(
-        "personalTargetData: $personalTargetData",
-        name: "fetchIndividualData",
-      );
-      final int totalMeetings =
-          int.tryParse(
-            personalTargetData['data']['total_meetings'].toString(),
-          ) ??
-          0;
-      final int meetingTarget =
-          int.tryParse(
-            personalTargetData['data']['meeting_target'].toString(),
-          ) ??
-          0;
-      // Guard against division by zero
-      int personalTargetValueDisplay = 0;
-      if (meetingTarget > 0) {
-        personalTargetValueDisplay = ((totalMeetings / daysInMonth)/ meetingTarget).round();
-      }
-      personalTargetJS = """
-        var insertPersonalTargetValue = document.getElementById('personalTargetValue');
-        insertPersonalTargetValue.textContent = "$personalTargetValueDisplay";
-        updatePersonalTargetValue();
-      """;
-    } else {
-      personalTargetJS = """
-        updatePersonalTargetValue();
-      """;
-    }
-    await controller.evaluateJavascript(source: personalTargetJS);
+    // instance of the PersonalDataWebViewHelper class
+    final webViewHelper = PersonalDataWebViewHelper(controller);
+    // store the montlyData of gauges
+    final personalDataState = ref.watch(personalDataProvider);
 
-    // for Bonus Metric Value
-    String bonusMetricJS = '';
-    final bonusMetricData = await AuthController.fetchBonusMetric();
-    if (bonusMetricData['status'] == true) {
-      developer.log(
-        "bonusMetricData: $bonusMetricData",
-        name: "fetchIndividualData",
-      );
-      final targetCompletion = int.tryParse(
-        bonusMetricData['data']['target_completion'].toString(),
-        ) ??
-        0;
-      if(targetCompletion <= 0){
-        DataStorage.saveShowBonusMetricBoolean(false);
-        bonusMetricJS = """
-          updateBonusMetricValue();
-        """;
-      }else{
-        DataStorage.saveShowBonusMetricBoolean(true);
-        bonusMetricJS = """
-          document.getElementById('bonusMetricGauge').style.display = 'block'; 
-          var insertBonusMetricValue = document.getElementById('bonusMetricValue');
-          insertBonusMetricValue.textContent = "$targetCompletion";
-          updateBonusMetricValue();
-        """;
-      }
-    } else {
-      bonusMetricJS = """
-        updateBonusMetricValue();
-      """;
-    }
-    await controller.evaluateJavascript(source: bonusMetricJS);
+    // fetching or getting the personal Target Value using the apis
+    ref.read(personalDataProvider.notifier).fetchPersonalTargetData(daysInMonth: daysInMonth);
+    webViewHelper.insertPersonalTargetValue(
+      personalDataState.personalTargetValueDisplay
+    );
+    // fetching or getting the bonusMetricValue using the apis
+    ref.read(personalDataProvider.notifier).fetchBonusMetricData();
+    webViewHelper.insertBonusMetricValue(
+      personalDataState.bonusMetricTargetCompletion
+    );
   }
 
   Future<void> initializePushNotifications() async {
