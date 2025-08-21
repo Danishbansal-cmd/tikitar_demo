@@ -2,17 +2,19 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:tikitar_demo/features/auth/login_screen.dart';
+import 'package:tikitar_demo/core/theme/theme.dart';
+import 'package:tikitar_demo/features/auth/view/pages/login_screen.dart';
 import 'package:tikitar_demo/features/other/foregroundBackground.dart';
 import 'package:tikitar_demo/features/other/splash_screen.dart';
-import 'package:tikitar_demo/features/webview/company_list_screen.dart';
-import 'package:tikitar_demo/features/webview/dashboard_screen.dart';
-import 'package:tikitar_demo/features/webview/meeting_list_screen.dart';
-import 'package:tikitar_demo/features/webview/my_profile_screen.dart';
-import 'package:tikitar_demo/features/webview/task_screen.dart';
+import 'package:tikitar_demo/features/companies/view/pages/company_list_screen.dart';
+import 'package:tikitar_demo/features/dashboard/view/pages/dashboard_screen.dart';
+import 'package:tikitar_demo/features/meetings/view/pages/meeting_list_screen.dart';
+import 'package:tikitar_demo/features/profile/view/pages/my_profile_screen.dart';
+import 'package:tikitar_demo/features/task/view/pages/task_screen.dart';
 import 'package:clarity_flutter/clarity_flutter.dart';
 import 'dart:io' show Platform;
 
@@ -29,7 +31,11 @@ void main() async {
   //You're calling SharedPreferences.getInstance() before Flutter is fully ready,
   //most likely before WidgetsFlutterBinding.ensureInitialized() is called.
 
-  await Firebase.initializeApp();
+  // initialize the firebase only for the android
+  if (Platform.isAndroid) {
+    await Firebase.initializeApp();
+    // other firebase setup
+  }
 
   // Force portrait mode only
   await SystemChrome.setPreferredOrientations([
@@ -37,7 +43,20 @@ void main() async {
     DeviceOrientation.portraitDown, // optional: allows upside-down portrait
   ]);
 
-  runApp(ClarityWidget(app: MyApp(), clarityConfig: config));
+  // Ensure system UI (status + nav bar) is visible
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+  runApp(
+    // ClarityWidget(
+    //   app: MyApp(), 
+    //   clarityConfig: config,
+    // ),
+
+    // MultiProvider for Riverpod
+    ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -52,7 +71,10 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkAndRequestLocationPermission();
+      // _checkAndRequestLocationPermission();
+      Future.delayed(Duration(milliseconds: 500), () {
+        // _checkAndRequestLocationPermission();
+      });
     });
   }
 
@@ -60,6 +82,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightThemeMode,
       initialRoute: '/', // initial route when app starts
       getPages: [
         GetPage(name: '/', page: () => SplashScreen()),
@@ -75,13 +98,13 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _checkAndRequestLocationPermission() async {
-    // Stop existing background service
-    FlutterBackgroundService().invoke('stopService');
     LocationPermission? permission;
 
     // Step 1: Check current permission
     if (Platform.isAndroid || Platform.isIOS) {
       permission = await Geolocator.checkPermission();
+    } else {
+      return; // unsupported platform
     }
 
     // Step 2: Request once if necessary
@@ -94,11 +117,7 @@ class _MyAppState extends State<MyApp> {
     if (permission == LocationPermission.always ||
         permission == LocationPermission.whileInUse) {
       // Permission granted
-      // fetch the locaion in foreground mode which is used to track the user location
-      // when the app is open or in the ram (user using other app)
-      if (!(await FlutterBackgroundService().isRunning())) {
-        await initializeForegroundBackgroundService(); // Initialize the background service
-      }
+      _startLocationServiceSafely();
     } else if (permission == LocationPermission.deniedForever) {
       // Permission permanently denied
 
@@ -129,5 +148,17 @@ class _MyAppState extends State<MyApp> {
         );
       }
     }
+  }
+  
+  /// Starts the location tracking service without blocking UI
+  /// // fetch the locaion in foreground mode which is used to track the user location
+    // when the app is open or in the ram (user using other app)
+  void _startLocationServiceSafely() {
+    Future.microtask(() async {
+      final service = FlutterBackgroundService();
+      if (!(await service.isRunning())) {
+        await initializeForegroundBackgroundService(); // Initialize the background service
+      }
+    });
   }
 }

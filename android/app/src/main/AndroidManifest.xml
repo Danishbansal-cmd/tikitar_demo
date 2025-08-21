@@ -30,6 +30,7 @@
         android:label="Trackify"
         android:name="${applicationName}"
         android:hardwareAccelerated="true"
+        android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher">
         <service android:name="id.flutter.flutter_background_service.BackgroundService"
             android:foregroundServiceType="location"

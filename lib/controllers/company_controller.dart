@@ -36,7 +36,7 @@ class CompanyController {
     }
   }
 
-  static Future<Map<String, dynamic>> getOnlyCompanies(int userId) async {
+  static Future<List<Map<String, dynamic>>> getOnlyCompanies(int userId) async {
     try {
       final response = await ApiBase.get("/clients/getcompanies/$userId");
 
@@ -44,20 +44,12 @@ class CompanyController {
       if (response != null &&
           response['status'] == true &&
           response['data'] != null) {
-        return {
-          "status": true,
-          "message": response['message'] ?? "Companies fetched successfully",
-          "data": response['data'], // could be a List or Map depending on API
-        };
+        return List<Map<String, dynamic>>.from(response['data']);
       } else {
-        return {
-          "status": false,
-          "message": response['message'] ?? "Invalid response",
-          "data": null,
-        };
+        throw Exception('Invalid response');
       }
     } catch (e) {
-      return {"status": false, "message": "Error: $e", "data": []};
+      throw Exception('Error: $e');
     }
   }
 }
