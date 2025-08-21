@@ -27,7 +27,7 @@
     </queries>
 
     <application
-        android:label="Trackify"
+        android:label="SalesPulse"
         android:name="${applicationName}"
         android:hardwareAccelerated="true"
         android:enableOnBackInvokedCallback="true"

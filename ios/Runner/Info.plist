@@ -5,7 +5,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>Trackify</string>
+		<string>SalesPulse</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -58,5 +58,10 @@
 		<true/>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
+		<!-- for location permission -->
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>This app needs access to your location to provide personalized services and features.</string>
+		<key>NSLocationAlwaysUsageDescription</key>
+		<string>This app needs access to your location in the background to send you timely notifications about nearby events, even when the app is closed.</string>
 	</dict>
 </plist>

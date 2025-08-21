@@ -90,7 +90,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          "Welcome, trackify",
+                          "Welcome, salesPulse",
                           style: loginSuperHeadingStyle,
                         ),
                         Text("Users Portal", style: loginSuperHeadingStyle),

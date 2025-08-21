@@ -1,13 +1,6 @@
-import 'dart:convert';
-
 import 'package:tikitar_demo/core/network/api_base.dart';
-import 'package:tikitar_demo/core/local/data_strorage.dart';
 
 class AuthController {
-  
-  
-
-      
   Future<Map<String, dynamic>> fetchUserData() async {
     try {
       // Pass token explicitly to the static GET method

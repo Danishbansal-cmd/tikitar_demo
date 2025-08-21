@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -65,9 +63,11 @@ class _WebviewCommonScreenState extends ConsumerState<WebviewCommonScreen> {
     final safeTop = MediaQuery.of(context).padding.top;
 
     return Scaffold(
-      extendBody: true,
+      extendBody: false, // for extension behind the bottom permanent navigation bar
       extendBodyBehindAppBar: true,
-      body: Padding(
+      body: SafeArea(
+        top: false,
+        child: Padding(
         padding: EdgeInsets.only(
           top: safeTop,
         ),
@@ -261,6 +261,7 @@ class _WebviewCommonScreenState extends ConsumerState<WebviewCommonScreen> {
 
                     try {
                       final status = await Permission.location.status;
+                      debugPrint("location permission status ${status.isGranted}");
                       final hasPermission = status.isGranted;
 
                       // widget.url provides the actual url of the webpage that we are
@@ -345,7 +346,7 @@ class _WebviewCommonScreenState extends ConsumerState<WebviewCommonScreen> {
                 ),
           ],
         ),
-      ),
+      ),),
     );
   }
 
