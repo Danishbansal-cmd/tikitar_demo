@@ -158,8 +158,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>{
     required InAppWebViewController controller,
     String? pageName,
   }) async {
-    // store the montlyData of gauges
-    final monthlyDataState = ref.watch(monthlyDataProvider);
     // access to the boolean values
     final showGaugesBoolean = ref.watch(showGaugesBooleanProvider);
     
@@ -215,15 +213,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>{
       // as there are users, that are reporting to this logged in user
       // then show the two gauges, that are under the main gauge, and update
       // the variable in riverpod state management
-      ref.read(monthlyDataProvider.notifier).fetchMonthlyData(daysInMonth: daysInMonth);
+      await ref.read(monthlyDataProvider.notifier).fetchMonthlyData(daysInMonth: daysInMonth);
       final webViewHelper = MonthlyDataWebViewHelper(controller);
       // show the gauges
       await webViewHelper.showGauges();
+      
+      // store the montlyData of gauges
+      final monthlyDataState = ref.watch(monthlyDataProvider);
+
       // update or set the value of the gauges
-      await webViewHelper.insertCurrentMonthMeetingsValue(
+      webViewHelper.insertCurrentMonthMeetingsValue(
         monthlyDataState.currentMonthMeetingsValueDisplay,
       );
-      await webViewHelper.insertCurrentMonthTargetValue(monthlyDataState.averageMeetings);
+      webViewHelper.insertCurrentMonthTargetValue(monthlyDataState.averageMeetings);
 
       // default to showing gauges
       if (showGaugesBoolean == false) {
@@ -275,16 +277,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>{
   }) async {
     // instance of the PersonalDataWebViewHelper class
     final webViewHelper = PersonalDataWebViewHelper(controller);
-    // store the montlyData of gauges
-    final personalDataState = ref.watch(personalDataProvider);
 
     // fetching or getting the personal Target Value using the apis
-    ref.read(personalDataProvider.notifier).fetchPersonalTargetData(daysInMonth: daysInMonth);
+    await ref.read(personalDataProvider.notifier).fetchPersonalTargetData();
+    
+    // fetching or getting the bonusMetricValue using the apis
+    await ref.read(personalDataProvider.notifier).fetchBonusMetricData();
+
+    // store the montlyData of gauges
+    final personalDataState = ref.read(personalDataProvider);
+
+    // inserting the personalTarget Value
     webViewHelper.insertPersonalTargetValue(
       personalDataState.personalTargetValueDisplay
     );
-    // fetching or getting the bonusMetricValue using the apis
-    ref.read(personalDataProvider.notifier).fetchBonusMetricData();
+    
+    // inserting the bonusMetric Data
     webViewHelper.insertBonusMetricValue(
       personalDataState.bonusMetricTargetCompletion
     );

@@ -1,6 +1,5 @@
 
 
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tikitar_demo/controllers/auth_controller.dart';
 
@@ -43,9 +42,7 @@ class PersonalDataNotifier extends StateNotifier<PersonalDataState>{
   }
 
   //// fetches the bonus metric data
-  Future<void> fetchPersonalTargetData({
-    required int daysInMonth,
-  }) async{
+  Future<void> fetchPersonalTargetData() async{
     // for Personal Target Value
     final personalTargetData = await AuthController.fetchPersonalTarget();
     if (personalTargetData['status'] == true) {
@@ -62,7 +59,8 @@ class PersonalDataNotifier extends StateNotifier<PersonalDataState>{
       // Guard against division by zero
       int personalTargetValueDisplay = 0;
       if (meetingTarget > 0) {
-        personalTargetValueDisplay = ((totalMeetings / daysInMonth)/ meetingTarget).round();
+        double result = (totalMeetings / meetingTarget) * 100;
+        personalTargetValueDisplay = result.round();
       }
       // update the state
       state = state.copyWith(

@@ -1,6 +1,7 @@
 
 
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tikitar_demo/controllers/auth_controller.dart';
 
@@ -48,10 +49,10 @@ class MonthlyDataNotifier extends StateNotifier<MonthlyDataState>{
       // Guard against division by zero
       int currentMonthMeetingsValueDisplay = 0;
       if (daysInMonth > 0 && meetingTarget > 0) {
-        currentMonthMeetingsValueDisplay =
-            (totalMeetings / (daysInMonth * meetingTarget)).round();
+        double result = (totalMeetings /  meetingTarget) * 100;
+        currentMonthMeetingsValueDisplay = result.round();
       }
-
+      
       state = state.copyWith(
         currentMonthMeetingsValueDisplay: currentMonthMeetingsValueDisplay
       );

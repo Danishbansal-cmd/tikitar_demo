@@ -48,7 +48,10 @@ void main() async {
 
     // MultiProvider for Riverpod
     ProviderScope(
-      child: MyApp(),
+      child:ClarityWidget(
+        app: MyApp(), 
+        clarityConfig: config,
+      ),
     ),
   );
 }
