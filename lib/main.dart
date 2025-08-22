@@ -65,17 +65,6 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // _checkAndRequestLocationPermission();
-      Future.delayed(Duration(milliseconds: 500), () {
-        // _checkAndRequestLocationPermission();
-      });
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,

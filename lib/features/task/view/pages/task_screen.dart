@@ -12,8 +12,6 @@ import 'package:tikitar_demo/features/common/view/pages/webview_common_screen.da
 import 'package:tikitar_demo/controllers/clients_controller.dart';
 import 'package:tikitar_demo/controllers/company_controller.dart';
 import 'package:tikitar_demo/controllers/meetings_controller.dart';
-import 'package:tikitar_demo/core/local/data_strorage.dart';
-import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 import 'package:tikitar_demo/features/common/functions.dart';
 import 'package:tikitar_demo/features/companies/repositories/company_repository.dart';
@@ -717,18 +715,6 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
 
     // makes sure the widget is mounted or in the context
     if (!mounted) return;
-
-    if (_visitedCardFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Please upload a visiting card before submitting."),
-        ),
-      );
-      await _controller?.evaluateJavascript(source: 'resetSubmitButton();');
-      // Ensure background tracking resumes
-      FlutterBackgroundService().invoke('resumeTracking');
-      return;
-    }
 
     // read data from the riverpod_provider
     final profile = ref.read(profileProvider);
